@@ -1,2 +1,4 @@
-# VoxNet
-Neural Network for 2D to 3D interpolation of LArTPC Data
+# DLPlayground
+A space where I store my network models, test and deploy them.
+
+Still primitive, but adding more models and testing them.
