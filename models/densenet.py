@@ -1,24 +1,46 @@
 import tensorflow as tf
+from network import network, hyperparameters
 
 # Implementation of densenet using purely tensorflow operations
 # Using the functional implementation as much as possible, not the lower level implementation
 
-class densenet():
+class densenet_params(hyperparameters):
+
+    def __init__(self):
+        super(resnet_params, self).__init__()
+
+        # Parameters that are important to densenet:
+
+        self._training_params[]
+
+        self._network_params['n_output_classes'] = 10
+        self._network_params['n_blocks'] = 3
+        self._network_params['n_layers_per_block'] = 4
+        self._network_params['include_fully_connected'] = False
+        self._network_params['growth_rate'] = 12
+        self._network_params['n_initial_filters'] = 64
+        self._network_params['initial_stride'] = 3
+        self._network_params['initial_kernel'] = 7
+        self._network_params['bottleneck'] = True
+        self._network_params['compression_factor'] = 0.5
+        self._network_params['dropout_rate'] = 0.5
+        self._network_params['weight_decay'] = 1E-3
+        self._network_params['activation'] = 'softmax'
+
+
+class densenet(network):
     
     #def __init__(self, imgs, weights=None, sess=None):
     def __init__(self):
-        pass
-        #self.imgs = imgs
-        #self.convlayers()
-        #self.fc_layers()
-        #self.probs = tf.nn.softmax(self.fc3l)
-        #if weights is not None and sess is not None:
-        #    self.load_weights(weights, sess)
+        name = "densenet"
+        if params is None:
+            params = densenet_params()
+        super(densenet, self).__init__(name, params)
 
 
     def build_dense_net(self, input_tensor, n_output_classes, n_blocks = 3, n_layers_per_block = 4, 
                         include_fully_connected = False, growth_rate=16, is_training=True,
-                        n_initial_filters=-1, initial_stride=3, bottleneck=False, compression_factor=1.0,
+                        n_initial_filters=-1, initial_stride=3, initial_kernel=7, bottleneck=False, compression_factor=1.0,
                         dropout_rate=None, weight_decay=1e-4, activation='softmax'):
         '''
         Create a densenet model (model initialization done elsewhere)
@@ -55,24 +77,25 @@ class densenet():
 
         # Now, start building the model
         # Initial 7x7 convolutional layer:
-        x = tf.layers.conv2d(input_tensor,
-                             n_initial_filters,
-                             kernel_size=(7,7),
-                             strides=(initial_stride, initial_stride),
-                             padding='same',
-                             data_format='channels_last',
-                             dilation_rate=(1, 1),
-                             activation=None,
-                             use_bias=False,
-                             kernel_initializer=None, # automatically uses Xavier initializer
-                             bias_initializer=tf.zeros_initializer(),
-                             kernel_regularizer=None,
-                             bias_regularizer=None,
-                             activity_regularizer=None,
-                             trainable=True,
-                             name="densenet",
-                             # name="initial_convolution7x7",
-                             reuse=None)
+        with tf.variable_scope("InitialConvolution"):
+            x = tf.layers.conv2d(input_tensor,
+                                 n_initial_filters,
+                                 kernel_size=(initial_kernel,initial_kernel),
+                                 strides=(initial_stride, initial_stride),
+                                 padding='same',
+                                 data_format='channels_last',
+                                 dilation_rate=(1, 1),
+                                 activation=None,
+                                 use_bias=False,
+                                 kernel_initializer=None, # automatically uses Xavier initializer
+                                 bias_initializer=tf.zeros_initializer(),
+                                 kernel_regularizer=None,
+                                 bias_regularizer=None,
+                                 activity_regularizer=None,
+                                 trainable=True,
+                                 name="InitalConv2D7x7",
+                                 # name="initial_convolution7x7",
+                                 reuse=None)
 
 
         # Apply dense blocks and transition blocks alternately, except no transition block after the last dense block:
@@ -98,7 +121,7 @@ class densenet():
                              bottleneck=bottleneck,
                              dropout=dropout_rate, weight_decay=weight_decay)
 
-        with tf.name_scope("final_pooling"):
+        with tf.variable_scope("FinalPooling"):
 
             # Batch normalization is applied first:
             x = tf.layers.batch_normalization(x,
@@ -115,60 +138,60 @@ class densenet():
                                   gamma_regularizer=None,
                                   training=is_training,
                                   trainable=True,
-                                  name="final_pooling",
+                                  name="FinalPoolingBatchNorm",
                                   reuse=None)
 
             # ReLU:
-            x = tf.nn.relu(x, name="final_pooling")
+            x = tf.nn.relu(x, name="FinalPoolingReLU")
 
-        # if using a fully connected layer, map this output to a fully connected layer.
+            # if using a fully connected layer, map this output to a fully connected layer.
 
-        # if not using a fully connected layer, use a 1x1 convolution to map features to the right number
-        # of features to apply global average pooling
-
-
-        if include_fully_connected:
-            pass
-#                x = Dense(n_output_classes, activation=activation, 
-#                          kernel_regularizer=l2(weight_decay), 
-#                          bias_regularizer=l2(weight_decay))(x)
-
-        else:
-            with tf.name_scope("global_average_pooling"):
-                x = tf.layers.conv2d(x,
-                                     n_output_classes,
-                                     kernel_size=(1,1),
-                                     strides=(1, 1),
-                                     padding='same',
-                                     data_format='channels_last',
-                                     dilation_rate=(1, 1),
-                                     activation=None,
-                                     use_bias=False,
-                                     kernel_initializer=None, # automatically uses Xavier initializer
-                                     bias_initializer=tf.zeros_initializer(),
-                                     kernel_regularizer=None,
-                                     bias_regularizer=None,
-                                     activity_regularizer=None,
-                                     trainable=True,
-                                     name="global_average_pooling",
-                                     # name="convolution_globalpool_bottleneck1x1",
-                                     reuse=None)
-                # For global average pooling, need to get the shape of the input:
-                shape = (x.shape[1], x.shape[2])
-                x = tf.nn.pool(x,
-                               window_shape=shape,
-                               pooling_type="AVG",
-                               padding="VALID",
-                               dilation_rate=None,
-                               strides=None,
-                               name="global_average_pooling",
-                               data_format=None)
+            # if not using a fully connected layer, use a 1x1 convolution to map features to the right number
+            # of features to apply global average pooling
 
 
-                # Reshape to remove empty dimensions:
-                x = tf.reshape(x, [tf.shape(x)[0], n_output_classes], name = "global_pooling_reshape")
-                # Apply the activation:
-                x = tf.nn.softmax(x,dim=-1)
+            if include_fully_connected:
+                pass
+    #                x = Dense(n_output_classes, activation=activation, 
+    #                          kernel_regularizer=l2(weight_decay), 
+    #                          bias_regularizer=l2(weight_decay))(x)
+
+            else:
+                with tf.variable_scope("global_average_pooling"):
+                    x = tf.layers.conv2d(x,
+                                         n_output_classes,
+                                         kernel_size=(1,1),
+                                         strides=(1, 1),
+                                         padding='same',
+                                         data_format='channels_last',
+                                         dilation_rate=(1, 1),
+                                         activation=None,
+                                         use_bias=False,
+                                         kernel_initializer=None, # automatically uses Xavier initializer
+                                         bias_initializer=tf.zeros_initializer(),
+                                         kernel_regularizer=None,
+                                         bias_regularizer=None,
+                                         activity_regularizer=None,
+                                         trainable=True,
+                                         name="GlobalAveragePoolingBottleneck1x1",
+                                         # name="convolution_globalpool_bottleneck1x1",
+                                         reuse=None)
+                    # For global average pooling, need to get the shape of the input:
+                    shape = (x.shape[1], x.shape[2])
+                    x = tf.nn.pool(x,
+                                   window_shape=shape,
+                                   pooling_type="AVG",
+                                   padding="VALID",
+                                   dilation_rate=None,
+                                   strides=None,
+                                   name="GlobalAveragePooling2D",
+                                   data_format=None)
+
+
+                    # Reshape to remove empty dimensions:
+                    x = tf.reshape(x, [tf.shape(x)[0], n_output_classes], name = "global_pooling_reshape")
+                    # Apply the activation:
+                    x = tf.nn.softmax(x,dim=-1)
 
 
         return x
@@ -185,7 +208,7 @@ class densenet():
         '''
 
 
-        with tf.name_scope("denseblock_{}".format(name)):
+        with tf.variable_scope("denseblock_{}".format(name)):
 
             # For each convolutional block, concatenate it's output with it's input
             for layer in range(n_layers):
@@ -193,7 +216,7 @@ class densenet():
                 conv_output = self.convolution_block(x, growth_rate, lab, is_training,
                                                      bottleneck, dropout, weight_decay)
 
-                x = tf.concat([x, conv_output], axis = -1, name='denseblock_{}_concat_{}'.format(name, layer))
+                x = tf.concat([x, conv_output], axis = -1, name='Concatenate_{}'.format(lab))
 
             return x
     
@@ -206,35 +229,33 @@ class densenet():
         dropout is the dropout rate
         weight_decay is the regularization term (L2)
         '''
-        _scope = "conv_{}".format(name)
-        with tf.name_scope(_scope):
 
-            with tf.name_scope("conv_batch_normalization_{}".format(name)):
-                # Batch normalization is applied first:
-                x = tf.layers.batch_normalization(input_tensor,
-                                      axis=-1,
-                                      momentum=0.99,
-                                      epsilon=0.001,
-                                      center=True,
-                                      scale=True,
-                                      beta_initializer=tf.zeros_initializer(),
-                                      gamma_initializer=tf.ones_initializer(),
-                                      moving_mean_initializer=tf.zeros_initializer(),
-                                      moving_variance_initializer=tf.ones_initializer(),
-                                      beta_regularizer=None,
-                                      gamma_regularizer=None,
-                                      training=is_training,
-                                      trainable=True,
-                                      name="conv_batch_normalization_{}".format(name),
-                                      reuse=None)
+        with tf.variable_scope("ConvBlock_{}".format(name)):
+            # Batch normalization is applied first:
+            x = tf.layers.batch_normalization(input_tensor,
+                                  axis=-1,
+                                  momentum=0.99,
+                                  epsilon=0.001,
+                                  center=True,
+                                  scale=True,
+                                  beta_initializer=tf.zeros_initializer(),
+                                  gamma_initializer=tf.ones_initializer(),
+                                  moving_mean_initializer=tf.zeros_initializer(),
+                                  moving_variance_initializer=tf.ones_initializer(),
+                                  beta_regularizer=None,
+                                  gamma_regularizer=None,
+                                  training=is_training,
+                                  trainable=True,
+                                  name="BatchNorm",
+                                  reuse=None)
 
             # ReLU:
-            x = tf.nn.relu(x, name="{}_relu_1".format(_scope))
+            x = tf.nn.relu(x, name="ReLU")
 
 
             if bottleneck:
                 # 1x1 convolution to reduce the number of filters
-                with tf.name_scope("bottleneck"):
+                with tf.variable_scope("Bottleneck"):
                     x = tf.layers.conv2d(x,
                                  4*n_filters,
                                  kernel_size=(1,1),
@@ -250,7 +271,7 @@ class densenet():
                                  bias_regularizer=None,
                                  activity_regularizer=None,
                                  trainable=True,
-                                 # name="{}_bottleneck1x1".format(_scope),
+                                 name="Bottleneck1x1",
                                  reuse=None)
 
 
@@ -261,7 +282,7 @@ class densenet():
                                               noise_shape=None,
                                               seed=None,
                                               training=is_training,
-                                              name=_scope)
+                                              name="BottleNeckDropout")
                                               # name="{}_dropout_1".format(_scope))
 
                     # Batch Norm
@@ -279,46 +300,45 @@ class densenet():
                                                       gamma_regularizer=None,
                                                       training=is_training,
                                                       trainable=True,
-                                                      # name="{}_bn_2".format(_scope),
+                                                      name="BatchNorm",
                                                       reuse=None)
                     # ReLU:
-                    x = tf.nn.relu(x, name="{}_relu_2".format(_scope))
+                    x = tf.nn.relu(x, name="ReLU")
 
 
             # Apply the 3x3 convolutional layer:
-            with tf.name_scope("conv3x3"):
-                x = tf.layers.conv2d(x,
-                                     n_filters,
-                                     kernel_size=(3,3),
-                                     strides=(1, 1),
-                                     padding='same',
-                                     data_format='channels_last',
-                                     dilation_rate=(1, 1),
-                                     activation=None,
-                                     use_bias=False,
-                                     kernel_initializer=None, # automatically uses Xavier initializer
-                                     bias_initializer=tf.zeros_initializer(),
-                                     kernel_regularizer=None,
-                                     bias_regularizer=None,
-                                     activity_regularizer=None,
-                                     trainable=True,
-                                     # name="{}_3x3".format(_scope),
-                                     reuse=None)
+            x = tf.layers.conv2d(x,
+                                 n_filters,
+                                 kernel_size=(3,3),
+                                 strides=(1, 1),
+                                 padding='same',
+                                 data_format='channels_last',
+                                 dilation_rate=(1, 1),
+                                 activation=None,
+                                 use_bias=False,
+                                 kernel_initializer=None, # automatically uses Xavier initializer
+                                 bias_initializer=tf.zeros_initializer(),
+                                 kernel_regularizer=None,
+                                 bias_regularizer=None,
+                                 activity_regularizer=None,
+                                 trainable=True,
+                                 name="Conv2D3x3",
+                                 reuse=None)
 
-            
-                #Dropout
-                if dropout is not None:
-                    # Apply the dropout rate:
-                    x = tf.layers.dropout(x,
-                                          rate=dropout,
-                                          noise_shape=None,
-                                          seed=None,
-                                          training=is_training)
-                                          # name="{}_dropout_2".format(_scope))
+        
+            #Dropout
+            if dropout is not None:
+                # Apply the dropout rate:
+                x = tf.layers.dropout(x,
+                                      rate=dropout,
+                                      noise_shape=None,
+                                      seed=None,
+                                      name="Dropout",
+                                      training=is_training)
 
 
-            # Finished a convolutional block
-            return x
+        # Finished a convolutional block
+        return x
 
             
             
@@ -334,8 +354,7 @@ class densenet():
         compression_factor is the rate at which to reduce the number of filters, using 1x1 conv
         weight_decay is the weight_decay parameter using L2 normalization
         '''
-        _scope = "transition_{}".format(name)
-        with tf.name_scope(_scope):
+        with tf.variable_scope("Transition_{}".format(name)):
 
             # Batch normalization is applied first:
             x = tf.layers.batch_normalization(input_tensor,
@@ -352,14 +371,14 @@ class densenet():
                                               gamma_regularizer=None,
                                               training=is_training,
                                               trainable=True,
-                                              name=_scope,
+                                              name="BatchNorm",
                                               # name="transition_bn_{}_1".format(name),
                                               reuse=None)
 
 
 
             # ReLU:
-            x = tf.nn.relu(x, name="transition_{}_relu_1".format(name))
+            x = tf.nn.relu(x, name="ReLU")
 
             # 1x1 convolution to reduce the number of filters
             n_output_filters = int(n_filters*compression_factor)
@@ -379,7 +398,7 @@ class densenet():
                                  bias_regularizer=None,
                                  activity_regularizer=None,
                                  trainable=True,
-                                 name=_scope,
+                                 name="Conv2D1x1",
                                  # name="transition_{}_conv1x1".format(name),
                                  reuse=None)
 
@@ -392,7 +411,7 @@ class densenet():
                                       noise_shape=None,
                                       seed=None,
                                       training=is_training,
-                                      name=_scope)
+                                      name="Dropout")
                                       # name="transition_{}_dropout".format(name))
 
 
@@ -402,7 +421,7 @@ class densenet():
                                             strides=(2,2),
                                             padding='same',
                                             data_format='channels_last',
-                                            name=_scope)
+                                            name="AveragePooling2D")
                                             # name="transition_{}_avpool".format(name))
 
             return x

@@ -1,0 +1,2 @@
+model_checkpoint_path: "densenet_pid_lr_5e-3_nblocks_2_nlpb_4_gr12_initkerel_3-1"
+all_model_checkpoint_paths: "densenet_pid_lr_5e-3_nblocks_2_nlpb_4_gr12_initkerel_3-1"
