@@ -2,14 +2,28 @@
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 import sys
+from models import resnet
 
 mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
 # mnist data is 28x28 images (784 pixels)
 
 # Set up the network we want to test:
+params = resnet.resnet_params()
+params.network_params()['n_blocks'] = 5
+params.network_params()['include_fully_connected'] = False
+params.network_params()['n_initial_filters'] = 4
+params.network_params()['downsample_interval'] = 4
+params.network_params()['initial_stride'] = 1
+params.network_params()['initial_kernel'] = 3
+params.network_params()['bottleneck'] = False
+params.network_params()['weight_decay'] = 1E-3
+params.network_params()['activation'] = 'softmax'
 
-from models import resnet
+
+params.training_params()['base_lr'] = 5E-3
+params.training_params()['lr_decay'] = 0.96
+params.training_params()['decay_step']=10
 
 
 # Set input data and label for training
@@ -19,14 +33,12 @@ label_tensor = tf.placeholder(tf.float32, [None, 10], name='labels')
 # Reshape the tensor to be 28x28:
 x = tf.reshape(data_tensor, (tf.shape(data_tensor)[0], 28, 28, 1))
 
-ResNet = resnet.resnet()
-
-EXTRA_NAME = "lr_5e-3_nblocks_2_nlpb_4_gr12_initkerel_3"
-lr = 5e-3
+ResNet = resnet.resnet(params)
 
 logits = ResNet.build_network(input_tensor=x, n_output_classes=10,
                                   is_training=True)
 
+print ResNet.full_name()
 
 # Add a global step accounting for saving and restoring training:
 with tf.name_scope("global_step") as scope:
@@ -47,19 +59,27 @@ with tf.name_scope("accuracy") as scope:
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
     acc_summary = tf.summary.scalar("Accuracy", accuracy)
 
+
+# Set up a learning rate so we can adapt it:
+learning_rate = tf.train.exponential_decay(learning_rate=params.training_params()['base_lr'], 
+                                           global_step=global_step,
+                                           decay_steps=params.training_params()['decay_step'],
+                                           decay_rate=params.training_params()['lr_decay'],
+                                           staircase=True)
+lr_summary = tf.summary.scalar("Learning Rate", learning_rate)
 # Set up a training algorithm:
 with tf.name_scope("training") as scope:
-    train_step = tf.train.AdamOptimizer(lr).minimize(
+    train_step = tf.train.AdamOptimizer(learning_rate).minimize(
         cross_entropy, global_step=global_step)
 
 
 print "Setting up tensorboard writer ... "
 
-LOGDIR = "logs_resnet"
+LOGDIR = "logs/resnet/"
 ITERATIONS = 20
 SAVE_ITERATION = 50
 
-train_writer = tf.summary.FileWriter(LOGDIR + "/" + EXTRA_NAME + "/")
+train_writer = tf.summary.FileWriter(LOGDIR + "/" + ResNet.full_name() + "/")
 # snapshot_writer = tf.summary.FileWriter(LOGDIR + "/snapshot/")
 saver = tf.train.Saver()
 
@@ -83,7 +103,7 @@ with tf.Session() as sess:
         if i-1 % SAVE_ITERATION == 0:
             saver.save(
                 sess,
-                LOGDIR+"/checkpoints/densenet_pid_{}".format(EXTRA_NAME),
+                LOGDIR+"/checkpoints/densenet_pid_{}".format(ResNet.full_name()),
                 global_step=global_step)
 
         # print training accuracy every 10 steps:
@@ -107,6 +127,6 @@ with tf.Session() as sess:
     print "\nFinal training loss {}, accuracy {}".format(l, a)
     data, label = mnist.test.next_batch(500)
     
-    [l, a, summary, _] = sess.run([cross_entropy, accuracy, merged_summary, train_step], feed_dict={
+    [l, a, summary] = sess.run([cross_entropy, accuracy, merged_summary], feed_dict={
             data_tensor: data, label_tensor: label})
     print "\nTesting loss {}, accuracy {}".format(l, a)

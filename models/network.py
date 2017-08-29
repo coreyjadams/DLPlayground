@@ -1,5 +1,4 @@
-import tensorflow as tf
-
+# import tensorflow as tf
 """
 This class is meant to make things easier for me to build networks
 and test hyperparameters.  Each "real" network will inherit from this 
@@ -14,26 +13,28 @@ class hyperparameters(object):
         super(hyperparameters, self).__init__()
         self._network_params = dict()
         self._training_params = dict()
-        self._key_param_list = []
+        self._key_param_dict = dict()
 
-        # Some basic initialization stuff:
-        self._params_dict['learning_rate' : 1E-3]
+        self._key_param_dict.update({'base_lr' : 'blr' ,
+                                     'lr_decay' : 'lrd' ,
+                                     'decay_step' : 'ds' })
+
+
+    def training_params(self):
+        return self._training_params
 
     def network_params(self):
-        return self._params_dict
+        return self._network_params
 
-    def add_param(self, param, value):
-        self._params_dict[param] = value
-        return
 
     def get_string(self):
         s = ""
-        for key in self._key_param_list:
+        for key in self._key_param_dict:
             if key in self._training_params:
-                s += "{}_{}_".format(key, self._training_params[key])
+                s += "_{}_{}".format(self._key_param_dict[key], self._training_params[key])
             if key in self._network_params:
-                s += "{}_{}_".format(key, self._network_params[key])
-
+                s += "_{}_{}".format(self._key_param_dict[key], self._network_params[key])
+        return s
 
 class network(object):
     """docstring for network"""
@@ -41,19 +42,18 @@ class network(object):
     def __init__(self, name, hyperparams):
         super(network, self).__init__()
         self._name = name
-        self._hyperparameters = hyperparams
+        self._params = hyperparams
 
     def name(self):
         return self._name
 
     def full_name(self):
-        _full_name = self._name + "_" + self._hyperparameters.get_string()
+        _full_name = self._name + self._params.get_string()
         return _full_name
 
     def hyperparameters(self):
-        return self._hyperparameters
+        return self._params
 
     def build_network(self, input_tensor):
         output = input_tensor
         return output
-
