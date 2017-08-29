@@ -10,7 +10,7 @@ mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
 # Set up the network we want to test:
 params = resnet.resnet_params()
-params.network_params()['n_blocks'] = 5
+params.network_params()['n_blocks'] = 2
 params.network_params()['include_fully_connected'] = False
 params.network_params()['n_initial_filters'] = 4
 params.network_params()['downsample_interval'] = 4
