@@ -10,9 +10,9 @@ mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
 
 # Set up the network we want to test:
 params = resnet.resnet_params()
-params.network_params()['n_blocks'] = 2
+params.network_params()['n_blocks'] = 10
 params.network_params()['include_fully_connected'] = False
-params.network_params()['n_initial_filters'] = 4
+params.network_params()['n_initial_filters'] = 12
 params.network_params()['downsample_interval'] = 4
 params.network_params()['initial_stride'] = 1
 params.network_params()['initial_kernel'] = 3
@@ -21,8 +21,8 @@ params.network_params()['weight_decay'] = 1E-3
 params.network_params()['activation'] = 'softmax'
 
 
-params.training_params()['base_lr'] = 5E-3
-params.training_params()['lr_decay'] = 0.96
+params.training_params()['base_lr'] = 1E-3
+params.training_params()['lr_decay'] = 0.99
 params.training_params()['decay_step']=10
 
 
@@ -76,8 +76,8 @@ with tf.name_scope("training") as scope:
 print "Setting up tensorboard writer ... "
 
 LOGDIR = "logs/resnet/"
-ITERATIONS = 20
-SAVE_ITERATION = 50
+ITERATIONS =5000
+SAVE_ITERATION = 500
 
 train_writer = tf.summary.FileWriter(LOGDIR + "/" + ResNet.full_name() + "/")
 # snapshot_writer = tf.summary.FileWriter(LOGDIR + "/snapshot/")
@@ -125,7 +125,7 @@ with tf.Session() as sess:
         sys.stdout.flush()
 
     print "\nFinal training loss {}, accuracy {}".format(l, a)
-    data, label = mnist.test.next_batch(500)
+    data, label = mnist.test.next_batch(2000)
     
     [l, a, summary] = sess.run([cross_entropy, accuracy, merged_summary], feed_dict={
             data_tensor: data, label_tensor: label})
