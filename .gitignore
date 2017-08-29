@@ -1,3 +1,8 @@
+*.root
+*.ipynb_checkpoints
 *.index
 *.meta
 *.pyc
+*.out
+*.log
+
