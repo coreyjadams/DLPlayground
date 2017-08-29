@@ -133,7 +133,8 @@ class resnet(network):
                                  reuse=None)
 
         # Sum the input and the output:
-        x = tf.add(x, input_tensor)
+        with tf.variable_scope(name+"_add"):
+          x = tf.add(x, input_tensor, name="Add")
         return x
 
 
@@ -250,7 +251,8 @@ class resnet(network):
                                  reuse=None)
 
         # Sum the input and the output:
-        x = tf.add(x, y)
+        with tf.variable_scope(name+"_add"):
+            x = tf.add(x, y)
         return x
 
     def build_network(self, input_tensor, is_training=True, n_output_classes=10):
