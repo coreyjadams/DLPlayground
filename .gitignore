@@ -1,3 +1,6 @@
 *.index
 *.meta
 *.pyc
+*.root
+*logs/*
+*checkpoint
