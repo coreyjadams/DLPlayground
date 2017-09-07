@@ -5,4 +5,6 @@
 *.pyc
 *.out
 *.log
-
+*.root
+*log/*
+*checkpoint

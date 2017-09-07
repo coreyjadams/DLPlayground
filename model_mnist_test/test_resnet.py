@@ -59,7 +59,6 @@ with tf.name_scope("accuracy") as scope:
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
     acc_summary = tf.summary.scalar("Accuracy", accuracy)
 
-
 # Set up a learning rate so we can adapt it:
 learning_rate = tf.train.exponential_decay(learning_rate=params.training_params()['base_lr'], 
                                            global_step=global_step,
@@ -84,7 +83,7 @@ train_writer = tf.summary.FileWriter(LOGDIR + "/" + ResNet.full_name() + "/")
 saver = tf.train.Saver()
 
 merged_summary = tf.summary.merge_all()
-print type(merged_summary)
+
 
 print "Initialize session ..."
 with tf.Session() as sess:

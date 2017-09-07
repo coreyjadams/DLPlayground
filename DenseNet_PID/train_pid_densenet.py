@@ -23,12 +23,8 @@ print cfg
 time.sleep(0.5)
 
 # Import more libraries (after configuration is validated)
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-import numpy as np
 from utils.dataloader import larcv_data
 
 #
