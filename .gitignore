@@ -2,5 +2,5 @@
 *.meta
 *.pyc
 *.root
-*logs/*
+*log/*
 *checkpoint
