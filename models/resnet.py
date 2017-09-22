@@ -261,7 +261,7 @@ class resnet(network):
 
         # Initial convolutional layer:
         x = tf.layers.conv2d(input_tensor,
-                             64,
+                             params['n_initial_filters'],
                              kernel_size=(params['initial_kernel'],
                                           params['initial_kernel']),
                              strides=(params['initial_stride'],
