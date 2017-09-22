@@ -32,7 +32,7 @@ params.network_params()['activation'] = 'softmax'
 
 
 params.training_params()['NUM_CLASS'] = 5
-params.training_params()['BATCH'] = 2
+params.training_params()['BATCH'] = 6
 params.training_params()['TEST_BATCH'] = 48
 params.training_params()['LOGDIR'] = "logs/"
 params.training_params()['ITERATIONS'] = 50000
@@ -40,7 +40,7 @@ params.training_params()['SAVE_ITERATION'] = 1000
 params.training_params()['TEST_ITERATION'] = 50
 params.training_params()['RESTORE'] = False
 
-params.training_params()['base_lr'] = 5E-4
+params.training_params()['base_lr'] = 1E-4
 params.training_params()['lr_decay'] = 0.99
 params.training_params()['decay_step']=100
 
@@ -66,19 +66,35 @@ BATCH_SIZE = params.training_params()['BATCH']
 
 # Instantiate and configure
 
-proc = larcv_threadio()
-filler_cfg = {'filler_name': 'ThreadProcessor',
+train_proc = larcv_threadio()
+filler_cfg = {'filler_name': 'ThreadProcessorTrain',
               'verbosity':0, 
-              'filler_cfg':"test_3d.cfg"}
-proc.configure(filler_cfg)
+              'filler_cfg':"pid3d_train.cfg"}
+train_proc.configure(filler_cfg)
 # Start IO thread
-proc.start_manager(BATCH_SIZE)
+train_proc.start_manager(BATCH_SIZE)
 # Storage ID
 storage_id=0
 # Retrieve image/label dimensions
-proc.next()
-dim_data    = proc.fetch_data(STORAGE_KEY_DATA).dim()
-dim_label   = proc.fetch_data(STORAGE_KEY_LABEL).dim()
+train_proc.next()
+dim_data    = train_proc.fetch_data(STORAGE_KEY_DATA).dim()
+dim_label   = train_proc.fetch_data(STORAGE_KEY_LABEL).dim()
+
+
+
+val_proc = larcv_threadio()
+filler_cfg = {'filler_name': 'ThreadProcessorVal',
+              'verbosity':0, 
+              'filler_cfg':"pid3d_val.cfg"}
+val_proc.configure(filler_cfg)
+# Start IO thread
+val_proc.start_manager(params.training_params()['TEST_BATCH'])
+# Storage ID
+storage_id=0
+# Retrieve image/label dimensions
+val_proc.next()
+
+
 
 print dim_data
 print dim_label
@@ -188,15 +204,15 @@ with tf.Graph().as_default():
                 
             # Receive data (this will hang if IO thread is still running = this
             # will wait for thread to finish & receive data)
-            batch_data  = proc.fetch_data(STORAGE_KEY_DATA).data()
-            batch_label = proc.fetch_data(STORAGE_KEY_LABEL).data()
+            batch_data  = train_proc.fetch_data(STORAGE_KEY_DATA).data()
+            batch_label = train_proc.fetch_data(STORAGE_KEY_LABEL).data()
 
             batch_data = np.reshape(batch_data, (batch_data.shape[0], dim_data[1], dim_data[2], dim_data[3], 1))
 
 
 
             # Start IO thread for the next batch while we train the network
-            proc.next()
+            train_proc.next()
 
             # Save the model out:
             if step != 0 and step % params.training_params()['SAVE_ITERATION'] == 0:
@@ -207,16 +223,16 @@ with tf.Graph().as_default():
 
             
 
-            # # Test the model with the validation set:
-            # if step != 0 and step % TEST_ITERATION == 0:
-            #     val_data, val_label = val_proc.next()
-            #     val_proc.read_next(params.training_params()['TEST_BATCH'])
-            #     val_label = convert_label(val_label,
-            #                               params.training_params()['NUM_CLASS'])
-            #     [v_s] = sess.run([val_summary], 
-            #                     feed_dict={data_tensor: val_data, 
-            #                                label_tensor : val_label})
-            #     train_writer.add_summary(v_s, step)
+            # Test the model with the validation set:
+            if step != 0 and step % TEST_ITERATION == 0:
+                val_data  = train_proc.fetch_data(STORAGE_KEY_DATA).data()
+                val_label = train_proc.fetch_data(STORAGE_KEY_LABEL).data()
+                val_proc.next()
+                val_data = np.reshape(val_data, (val_data.shape[0], dim_data[1], dim_data[2], dim_data[3], 1))
+                [v_s] = sess.run([val_summary], 
+                                feed_dict={data_tensor: val_data, 
+                                           label_tensor : val_label})
+                train_writer.add_summary(v_s, step)
   
             # Run the training step:
             [l, a, summary, _] = sess.run([cross_entropy, accuracy, merged_summary, train_step], 
