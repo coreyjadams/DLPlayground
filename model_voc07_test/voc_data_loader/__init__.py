@@ -1,0 +1,1 @@
+from .voc_image import voc_image
