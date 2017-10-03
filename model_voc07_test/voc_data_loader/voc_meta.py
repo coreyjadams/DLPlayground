@@ -31,10 +31,59 @@ class voc_meta(object):
                         'sofa',
                         'train',
                         'tvmonitor']
-        
+        self._top_dir = top_dir
+        _f_base = self._top_dir + 'VOC2007/ImageSets/Main/'
+        # Read in the train, val, and trainval total sets:
+        self._df_train    = pd.read_csv(_f_base + 'train.txt', 
+                                        delim_whitespace = True,
+                                        index_col=0,
+                                        names={'TRAIN'}).replace([-1, 1], [False, True])
+        self._df_val      = pd.read_csv(_f_base + 'val.txt', 
+                                        delim_whitespace = True,
+                                        index_col=0,
+                                        names={'VAL'}).replace([-1, 1], [False, True])
+        self._df_trainval = pd.read_csv(_f_base + 'trainval.txt', 
+                                        delim_whitespace = True,
+                                        index_col=0,
+                                        names={'TRAINVAL'}).replace([-1, 1], [False, True])
+
+        for _class in self._classes:
+            self.read_class(_class)
+
+
     def classes(self):
         return self._classes
 
     def class_index(self, _class):
         if _class in self._classes:
             return self._classes.index(_class)
+
+            
+    def read_class(self, _class):
+        _f_base = self._top_dir + 'VOC2007/ImageSets/Main/{}_'.format(_class)
+        _df_train    = pd.read_csv(_f_base + 'train.txt', 
+                                    delim_whitespace = True,
+                                    index_col=0,
+                                    names={_class}).replace([-1, 1], [False, True])
+        _df_val      = pd.read_csv(_f_base + 'val.txt', 
+                                    delim_whitespace = True,
+                                    index_col=0,
+                                    names={_class}).replace([-1, 1], [False, True])
+        _df_trainval = pd.read_csv(_f_base + 'trainval.txt', 
+                                    delim_whitespace = True,
+                                    index_col=0,
+                                    names={_class}).replace([-1, 1], [False, True])
+        
+        self._df_train    = pd.merge(self._df_train, _df_train, 
+                                    left_index=True, 
+                                    right_index=True, 
+                                    how='outer').fillna(False)
+        self._df_val      = pd.merge(self._df_val, _df_val, 
+                                    left_index=True, 
+                                    right_index=True, 
+                                    how='outer').fillna(False)
+        self._df_trainval = pd.merge(self._df_trainval, _df_trainval, 
+                                    left_index=True, 
+                                    right_index=True, 
+                                    how='outer').fillna(False)
+      
