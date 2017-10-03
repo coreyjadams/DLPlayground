@@ -292,13 +292,12 @@ class rpn(network):
         
         n = x.get_shape().as_list()[1]
         # n_filters = 2*input_tensor.get_shape().as_list()[-1]
-
         with tf.variable_scope("RPN-FC"):
             x = tf.layers.conv2d(x,
                                  512,
-                                 kernel_size=[n, n],
+                                 kernel_size=[32, 32],
                                  strides=[1, 1],
-                                 padding='same',
+                                 padding='valid',
                                  activation=None,
                                  use_bias=False,
                                  kernel_initializer=None,  # automatically uses Xavier initializer
@@ -329,7 +328,7 @@ class rpn(network):
             regressor = tf.reshape(regressor, (tf.shape(regressor)[0], n-2, n-2, 4))
 
 
-        with tf.variable_scope("RPN-reg"):
+        with tf.variable_scope("RPN-cls"):
             classifier = tf.layers.conv2d(x,
                                           2*k,
                                           kernel_size=[1, 1],
