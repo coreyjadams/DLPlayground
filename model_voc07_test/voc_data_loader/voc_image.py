@@ -39,8 +39,7 @@ class voc_image(object):
 
         # Load the images:
         _base_imname = xml_file.replace(".xml", "") + ".jpg"
-        self._base_image = ndimage.imread(top_dir + "VOC2007/JPEGImages/" + _base_imname)
-
+        self._base_image = ndimage.imread(top_dir + "VOC2007/JPEGImages/" + _base_imname, mode='RGB') * (1./255)
         if self._has_segmentation:
             _base_imname = xml_file.replace(".xml", "") + ".png"
             self._seg_class = ndimage.imread(top_dir + "VOC2007/SegmentationClass/" + _base_imname)
@@ -48,7 +47,7 @@ class voc_image(object):
 
 
     def image(self):
-        return self._image
+        return self._base_image
 
     def segmentation_object(self):
         return self._seg_obj
@@ -65,8 +64,11 @@ class voc_image(object):
     def has_segmentation(self):
         return self._has_segmentation
 
-    def bounding_box(self, index):
-        return self._bb[index]
+    def n_boxes(self):
+        return len(self._bb)
+
+    def bounding_boxes(self):
+        return self._bb
 
     def pose(self, index):
         return self._pose[index]
@@ -77,11 +79,11 @@ class voc_image(object):
     def difficult(self, index):
         return self._difficult[index]
 
-    def width(self, width):
+    def width(self):
         return self._width
 
-    def heigth(self, heigth):
-        return self._heigth
+    def height(self):
+        return self._height
     
-    def depth(self, depth):
+    def depth(self):
         return self._depth

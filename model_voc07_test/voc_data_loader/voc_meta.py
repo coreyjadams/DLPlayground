@@ -64,6 +64,8 @@ class voc_meta(object):
         if _class in self._classes:
             return self._classes.index(_class)
 
+    def class_name(self, index):
+        return self._classes[index]
             
     def read_class(self, _class):
         _f_base = self._top_dir + 'VOC2007/ImageSets/Main/{}_'.format(_class)
@@ -92,4 +94,54 @@ class voc_meta(object):
                                     left_index=True, 
                                     right_index=True, 
                                     how='outer').fillna(False)
-      
+    
+    def train_indexes(self, _select_classes = None, _seg_indexes=False):
+        if _select_classes is None:
+            if not _seg_indexes:
+                return self._df_train.index
+            else:
+                return self._seg_train
+        else:
+            _query = ""
+            for _class in _select_classes:
+                _query += "{} == True &".format(_class)
+            _query = _query.rstrip("&")
+            if not _seg_indexes:
+                return self._df_train.query(_query).index
+            else:
+                return numpy.intersect1d(self._df_train.query(_query).index, 
+                                         self._seg_train)
+
+    def val_indexes(self, _select_classes = None, _seg_indexes=False):
+        if _select_classes is None:
+            if not _seg_indexes:
+                return self._df_val.index
+            else:
+                return self._seg_val
+        else:
+            _query = ""
+            for _class in _select_classes:
+                _query += "{} == True &".format(_class)
+            _query = _query.rstrip("&")
+            if not _seg_indexes:
+                return self._df_val.query(_query).index
+            else:
+                return numpy.intersect1d(self._df_val.query(_query).index, 
+                                         self._seg_val)
+
+    def indexes(self, _select_classes = None, _seg_indexes=False):
+        if _select_classes is None:
+            if not _seg_indexes:
+                return self._df_trainval.index
+            else:
+                return self._seg_trainval
+        else:
+            _query = ""
+            for _class in _select_classes:
+                _query += "{} == True &".format(_class)
+            _query = _query.rstrip("&")
+            if not _seg_indexes:
+                return self._df_trainval.query(_query).index
+            else:
+                return numpy.intersect1d(self._df_trainval.query(_query).index, 
+                                         self._seg_trainval)
