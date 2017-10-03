@@ -2,15 +2,15 @@
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 import sys
-from models import fasterrcnn
+from models import rpn, rpn_params
 
 from voc_data_loader import voc_meta, image_loader
 
 # mnist data is 28x28 images (784 pixels)
 
 # Set up the network we want to test:
-params = fasterrcnn.resnet_params()
-params.network_params()['n_blocks'] = 4
+params = rpn_params()
+params.network_params()['n_blocks'] = 8
 params.network_params()['include_fully_connected'] = False
 params.network_params()['n_initial_filters'] = 12
 params.network_params()['downsample_interval'] = 2
@@ -25,7 +25,7 @@ params.training_params()['base_lr'] = 1E-3
 params.training_params()['lr_decay'] = 0.99
 params.training_params()['decay_step']=10
 
-params.training_params()['LOGDIR'] = "logs/fasterrcnn/"
+params.training_params()['LOGDIR'] = "logs/rpn/"
 params.training_params()['ITERATIONS'] = 5000
 params.training_params()['SAVE_ITERATION'] = 100
 params.training_params()['RESTORE'] = False
@@ -43,61 +43,56 @@ with tf.Graph().as_default():
     box_label = tf.placeholder(tf.float32, )
 
 
-    FasterRCNN = fasterrcnn.fasterrcnn(params)
-
-
-    # if not params.training_params()['RESTORE']:
-    logits = FasterRCNN.build_network(input_tensor=x, n_output_classes=10,
-                                      is_training=True)
-
-    LOGDIR = params.training_params()['LOGDIR'] + "/" + FasterRCNN.full_name() + "/"
-
-    print FasterRCNN.full_name()
+    RPN = rpn(params)
+    LOGDIR = params.training_params()['LOGDIR'] + "/" + RPN.full_name() + "/"
+    print RPN.full_name()
 
     # if not params.training_params()['RESTORE']:
+    classifier, regressor = RPN.build_network(input_tensor=data_tensor, 
+                                              n_output_classes=10,
+                                              is_training=True)
+
+
+
 
     # Add a global step accounting for saving and restoring training:
     with tf.name_scope("global_step") as scope:
         global_step = tf.Variable(
             0, dtype=tf.int32, trainable=False, name='global_step')
 
-    # Add cross entropy (loss)
-    with tf.name_scope("cross_entropy") as scope:
-        cross_entropy = tf.reduce_mean(
-            tf.nn.softmax_cross_entropy_with_logits(labels=label_tensor,
-                                                    logits=logits))
-        loss_summary = tf.summary.scalar("Loss", cross_entropy)
+    # # Add cross entropy (loss)
+    # with tf.name_scope("cross_entropy") as scope:
+    #     cross_entropy = tf.reduce_mean(
+    #         tf.nn.softmax_cross_entropy_with_logits(labels=label_tensor,
+    #                                                 logits=logits))
+    #     loss_summary = tf.summary.scalar("Loss", cross_entropy)
 
-    # Add accuracy:
-    with tf.name_scope("accuracy") as scope:
-        correct_prediction = tf.equal(
-            tf.argmax(logits, 1), tf.argmax(label_tensor, 1))
-        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-        acc_summary = tf.summary.scalar("Accuracy", accuracy)
-
-    # Set up a learning rate so we can adapt it:
-    learning_rate = tf.train.exponential_decay(learning_rate=params.training_params()['base_lr'], 
-                                               global_step=global_step,
-                                               decay_steps=params.training_params()['decay_step'],
-                                               decay_rate=params.training_params()['lr_decay'],
-                                               staircase=True)
+    # # Add accuracy:
+    # with tf.name_scope("accuracy") as scope:
+    #     correct_prediction = tf.equal(
+    #         tf.argmax(logits, 1), tf.argmax(label_tensor, 1))
+    #     accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    #     acc_summary = tf.summary.scalar("Accuracy", accuracy)
+    #
+    # # Set up a learning rate so we can adapt it:
+    # learning_rate = tf.train.exponential_decay(learning_rate=params.training_params()['base_lr'], 
+    #                                            global_step=global_step,
+    #                                            decay_steps=params.training_params()['decay_step'],
+    #                                            decay_rate=params.training_params()['lr_decay'],
+    #                                            staircase=True)
     
-    lr_summary = tf.summary.scalar("Learning Rate", learning_rate)
-    # Set up a training algorithm:
-    with tf.name_scope("training") as scope:
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        with tf.control_dependencies(update_ops):
-            train_step = tf.train.AdamOptimizer(learning_rate).minimize(
-                cross_entropy, global_step=global_step)
+    # lr_summary = tf.summary.scalar("Learning Rate", learning_rate)
+    # # Set up a training algorithm:
+    # with tf.name_scope("training") as scope:
+    #     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    #     with tf.control_dependencies(update_ops):
+    #         train_step = tf.train.AdamOptimizer(learning_rate).minimize(
+    #             cross_entropy, global_step=global_step)
 
 
 
 
     merged_summary = tf.summary.merge_all()
-
-    # Set up a supervisor to manage checkpoints and summaries
-
-    # sv = tf.train.Supervisor(logdir=LOGDIR, summary_op=None)
 
     # # Set up a saver:
     train_writer = tf.summary.FileWriter(LOGDIR)
@@ -107,6 +102,9 @@ with tf.Graph().as_default():
     print "Initialize session ..."
     with tf.Session() as sess:
         
+        train_writer.add_graph(sess.graph)
+        exit()
+
         if not params.training_params()['RESTORE']:
             sess.run(tf.global_variables_initializer())
             train_writer.add_graph(sess.graph)
