@@ -50,6 +50,12 @@ class voc_meta(object):
         for _class in self._classes:
             self.read_class(_class)
 
+        # Read in the list of segmenatation images:
+        _f_base = self._top_dir + 'VOC2007/ImageSets/Segmentation/'
+        self._seg_train    = numpy.loadtxt(_f_base + "train.txt")
+        self._seg_val      = numpy.loadtxt(_f_base + "val.txt")
+        self._seg_trainval = numpy.loadtxt(_f_base + "trainval.txt")
+
 
     def classes(self):
         return self._classes
