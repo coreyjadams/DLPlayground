@@ -1,6 +1,6 @@
 import tensorflow as tf
 from network import network, hyperparameters
-
+import numpy as np
 
 class rpn_params(hyperparameters):
 
@@ -255,7 +255,7 @@ class rpn(network):
             x = tf.add(x, y)
         return x
 
-    def build_network(self, input_tensor, is_training=True, n_output_classes=10):
+    def build_network(self, input_tensor, is_training=True, n_anchors=9):
 
         params = self._params.network_params()
 
@@ -307,7 +307,7 @@ class rpn(network):
                                  name="Conv2DNxN",
                                  reuse=None)
 
-        k = (n - 2)*(n - 2)
+        k = (n - 2)*(n - 2)*n_anchors
 
         with tf.variable_scope("RPN-reg"):
             regressor = tf.layers.conv2d(x,
@@ -350,3 +350,42 @@ class rpn(network):
             classifier = tf.nn.softmax(classifier, dim=-1)
 
         return classifier, regressor
+
+
+def select_anchors(ground_truth_bb_tensor, 
+                   anchor_bb_tensor,
+                   IoUs,
+                   n_target_anchors = 256,
+                   max_pos_anchors = 128, 
+                   IoU_threshold_positive = 0.7, 
+                   IoU_threshold_negative = 0.3):
+
+    # This function determines which ROIs (regressed) are to be used
+    # to calculate the loss functions.  It computes the IoU for all ROIs and
+    # any ROI that has IoU > IoU_threshold_positive is stored as a positive example.
+    # The number of positive anchors is filled until max_pos_anchors is reached.
+    # The rest of the anchors are return as negative examples.
+    # 
+    # A negative example must have an IoU threshold below the target threshold when
+    # compared to ALL ground_truth rois.
+    # 
+    # If no anchor has a postive IoU > threshold, the highest IoU to 
+    # a ground truth is selected as a positive example
+    # 
+
+    # THIS FUNCTION IS PURE NUMPY
+
+    # We have the IoUs, so first is to see how many are over threshold:
+    
+    _pos = tf.where(IoUs > IoU_threshold_positive)
+    if len(_pos) == 0 :
+      # None are over threshold, so use argmax to find the best one:
+      _pos = numpy.unravel_index(numpy.argmax(IoUs), IoUs.shape)
+
+    # We have to find the 
+
+    return tf.argmax(IoUs, axis=-1)
+    # return _pos
+
+
+    # return matched_anchors, ground_truths, positive_indexes
