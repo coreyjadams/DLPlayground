@@ -8,23 +8,10 @@ class rpn_params(hyperparameters):
         super(rpn_params, self).__init__()
 
         # Parameters that are important to rpn:
-        self._network_params['n_blocks'] = 18
-        self._network_params['include_fully_connected'] = False
-        self._network_params['n_initial_filters'] = 16
-        self._network_params['downsample_interval'] = 8
-        self._network_params['initial_stride'] = 1
-        self._network_params['initial_kernel'] = 3
-        self._network_params['bottleneck'] = False
+        self._network_params['n_anchors_per_box'] = 9
         self._network_params['weight_decay'] = 1E-3
-        self._network_params['activation'] = 'softmax'
 
-        self._key_param_dict.update({"n_blocks": "nb",
-                                     "n_initial_filters": "nf",
-                                     "downsample_interval" : "di",
-                                     "initial_stride": "is",
-                                     "initial_kernel": "ik",
-                                     "bottleneck": "B",
-                                     })
+        self._key_param_dict.update({})
 
 
 class rpn(network):
@@ -37,265 +24,23 @@ class rpn(network):
             params = rpn_params()
         super(rpn, self).__init__(name, params)
 
-    def residual_block(self, input_tensor,
-                       is_training,
-                       kernel=[3, 3],
-                       stride=[1, 1],
-                       name=""):
-        """
-        @brief      Create a residual block and apply it to the input tensor
-
-        @param      self          The object
-        @param      input_tensor  The input tensor
-        @param      kernel        Size of convolutional kernel to apply
-        @param      n_filters     Number of output filters
-
-        @return     { Tensor with the residual network applied }
-        """
-
-        # Residual block has the identity path summed with the output of
-        # BN/Relu/Conv2d applied twice
-
-        # Assuming channels last here:
-        n_filters = input_tensor.shape[-1]
-
-        with tf.variable_scope(name + "_0"):
-            # Batch normalization is applied first:
-            x = tf.layers.batch_normalization(input_tensor,
-                                              axis=-1,
-                                              momentum=0.99,
-                                              epsilon=0.001,
-                                              center=True,
-                                              scale=True,
-                                              beta_initializer=tf.zeros_initializer(),
-                                              gamma_initializer=tf.ones_initializer(),
-                                              moving_mean_initializer=tf.zeros_initializer(),
-                                              moving_variance_initializer=tf.ones_initializer(),
-                                              beta_regularizer=None,
-                                              gamma_regularizer=None,
-                                              training=is_training,
-                                              trainable=True,
-                                              name="BatchNorm",
-                                              reuse=None)
-            # ReLU:
-            x = tf.nn.relu(x)
-
-            # Conv2d:
-            x = tf.layers.conv2d(x, n_filters,
-                                 kernel_size=[3, 3],
-                                 strides=[1, 1],
-                                 padding='same',
-                                 activation=None,
-                                 use_bias=False,
-                                 kernel_initializer=None,  # automatically uses Xavier initializer
-                                 kernel_regularizer=None,
-                                 activity_regularizer=None,
-                                 trainable=True,
-                                 name="Conv2D",
-                                 reuse=None)
-
-        # Apply everything a second time:
-        with tf.variable_scope(name + "_1"):
-
-            # Batch normalization is applied first:
-            x = tf.layers.batch_normalization(x,
-                                              axis=-1,
-                                              momentum=0.99,
-                                              epsilon=0.001,
-                                              center=True,
-                                              scale=True,
-                                              beta_initializer=tf.zeros_initializer(),
-                                              gamma_initializer=tf.ones_initializer(),
-                                              moving_mean_initializer=tf.zeros_initializer(),
-                                              moving_variance_initializer=tf.ones_initializer(),
-                                              beta_regularizer=None,
-                                              gamma_regularizer=None,
-                                              training=is_training,
-                                              trainable=True,
-                                              name="BatchNorm",
-                                              reuse=None)
-            # ReLU:
-            x = tf.nn.relu(x)
-
-            # Conv2d:
-            x = tf.layers.conv2d(x,
-                                 n_filters,
-                                 kernel_size=[3, 3],
-                                 strides=[1, 1],
-                                 padding='same',
-                                 activation=None,
-                                 use_bias=False,
-                                 kernel_initializer=None,  # automatically uses Xavier initializer
-                                 kernel_regularizer=None,
-                                 activity_regularizer=None,
-                                 trainable=True,
-                                 name="Conv2D",
-                                 reuse=None)
-
-        # Sum the input and the output:
-        with tf.variable_scope(name+"_add"):
-          x = tf.add(x, input_tensor, name="Add")
-        return x
-
-
-
-    def downsample_block(self, input_tensor,
-                       is_training,
-                       kernel=[3, 3],
-                       stride=[1, 1],
-                       name=""):
-        """
-        @brief      Create a residual block and apply it to the input tensor
-
-        @param      self          The object
-        @param      input_tensor  The input tensor
-        @param      kernel        Size of convolutional kernel to apply
-        @param      n_filters     Number of output filters
-
-        @return     { Tensor with the residual network applied }
-        """
-
-        # Residual block has the identity path summed with the output of
-        # BN/Relu/Conv2d applied twice
-
-        # Assuming channels last here:
-        n_filters = 2*input_tensor.get_shape().as_list()[-1]
-
-        with tf.variable_scope(name + "_0"):
-            # Batch normalization is applied first:
-            x = tf.layers.batch_normalization(input_tensor,
-                                              axis=-1,
-                                              momentum=0.99,
-                                              epsilon=0.001,
-                                              center=True,
-                                              scale=True,
-                                              beta_initializer=tf.zeros_initializer(),
-                                              gamma_initializer=tf.ones_initializer(),
-                                              moving_mean_initializer=tf.zeros_initializer(),
-                                              moving_variance_initializer=tf.ones_initializer(),
-                                              beta_regularizer=None,
-                                              gamma_regularizer=None,
-                                              training=is_training,
-                                              trainable=True,
-                                              name="BatchNorm",
-                                              reuse=None)
-            # ReLU:
-            x = tf.nn.relu(x)
-
-            # Conv2d:
-            x = tf.layers.conv2d(x, n_filters,
-                                 kernel_size=[3, 3],
-                                 strides=[2, 2],
-                                 padding='same',
-                                 activation=None,
-                                 use_bias=False,
-                                 kernel_initializer=None,  # automatically uses Xavier initializer
-                                 kernel_regularizer=None,
-                                 activity_regularizer=None,
-                                 trainable=True,
-                                 name="Conv2D",
-                                 reuse=None)
-
-        # Apply everything a second time:
-        with tf.variable_scope(name + "_1"):
-
-            # Batch normalization is applied first:
-            x = tf.layers.batch_normalization(x,
-                                              axis=-1,
-                                              momentum=0.99,
-                                              epsilon=0.001,
-                                              center=True,
-                                              scale=True,
-                                              beta_initializer=tf.zeros_initializer(),
-                                              gamma_initializer=tf.ones_initializer(),
-                                              moving_mean_initializer=tf.zeros_initializer(),
-                                              moving_variance_initializer=tf.ones_initializer(),
-                                              beta_regularizer=None,
-                                              gamma_regularizer=None,
-                                              training=is_training,
-                                              trainable=True,
-                                              name="BatchNorm",
-                                              reuse=None)
-            # ReLU:
-            x = tf.nn.relu(x)
-
-            # Conv2d:
-            x = tf.layers.conv2d(x,
-                                 n_filters,
-                                 kernel_size=[3, 3],
-                                 strides=[1, 1],
-                                 padding='same',
-                                 activation=None,
-                                 use_bias=False,
-                                 kernel_initializer=None,  # automatically uses Xavier initializer
-                                 kernel_regularizer=None,
-                                 activity_regularizer=None,
-                                 trainable=True,
-                                 name="Conv2D",
-                                 reuse=None)
-
-        # Map the input tensor to the output tensor with a 1x1 convolution
-        with tf.variable_scope(name+"identity"):
-            y = tf.layers.conv2d(input_tensor,
-                                 n_filters,
-                                 kernel_size=[1, 1],
-                                 strides=[2, 2],
-                                 padding='same',
-                                 activation=None,
-                                 use_bias=False,
-                                 kernel_initializer=None,  # automatically uses Xavier initializer
-                                 kernel_regularizer=None,
-                                 activity_regularizer=None,
-                                 trainable=True,
-                                 name="Conv2D1x1",
-                                 reuse=None)
-
-        # Sum the input and the output:
-        with tf.variable_scope(name+"_add"):
-            x = tf.add(x, y)
-        return x
-
-    def build_network(self, input_tensor, is_training=True, n_anchors=9):
+    def build_rpn(self, final_conv_layer, is_training=True):
 
         params = self._params.network_params()
 
-        # Initial convolutional layer:
-        x = tf.layers.conv2d(input_tensor,
-                             params['n_initial_filters'],
-                             kernel_size=(params['initial_kernel'],
-                                          params['initial_kernel']),
-                             strides=(params['initial_stride'],
-                                      params['initial_stride']),
-                             padding='same',
-                             activation=None,
-                             use_bias=False,
-                             bias_initializer=tf.zeros_initializer(),
-                             trainable=True,
-                             name="InitialConv2D",
-                             reuse=None)
-
-        for i in xrange(params["n_blocks"]):
-
-            if i != 0 and i % params['downsample_interval'] == 0:
-                x = self.downsample_block(x, name="res_block_downsample_{}".format(i),
-                                          is_training=is_training)
-            else:
-                x = self.residual_block(x, name="res_block_{}".format(i),
-                                        is_training=is_training)
-
-        # At this point, it has been a standard network implementation.
-        # Now we want to map the convolutional feature map to a set of regression
+        # We want to map the convolutional feature map to a set of regression
         # stages.  First, a fully connected network that maps to a 512d space
         # 
         # As mentioned in the Faster R-CNN paper, a fully connected network is 
         # simply an nxn convolution:
         
-        n = x.get_shape().as_list()[1]
-        # n_filters = 2*input_tensor.get_shape().as_list()[-1]
+        n = final_conv_layer.get_shape().as_list()[1]
+        m = final_conv_layer.get_shape().as_list()[2]
+    
         with tf.variable_scope("RPN-FC"):
-            x = tf.layers.conv2d(x,
+            x = tf.layers.conv2d(final_conv_layer,
                                  512,
-                                 kernel_size=[32, 32],
+                                 kernel_size=[n, m],
                                  strides=[1, 1],
                                  padding='valid',
                                  activation=None,
@@ -307,7 +52,8 @@ class rpn(network):
                                  name="Conv2DNxN",
                                  reuse=None)
 
-        k = (n - 2)*(n - 2)*n_anchors
+
+        k = (n - 2)*(m - 2)*params['n_anchors_per_box']
 
         with tf.variable_scope("RPN-reg"):
             regressor = tf.layers.conv2d(x,
@@ -325,7 +71,7 @@ class rpn(network):
                                          reuse=None)
 
             # Reshape the regressor into the feature map pools it was using:
-            regressor = tf.reshape(regressor, (tf.shape(regressor)[0], n-2, n-2, 4))
+            regressor = tf.reshape(regressor, (tf.shape(regressor)[0], k,4))
 
 
         with tf.variable_scope("RPN-cls"):
@@ -344,48 +90,239 @@ class rpn(network):
                                           reuse=None)        
 
             # Reshape the classifier into the feature map pools it was using:
-            classifier = tf.reshape(classifier, (tf.shape(classifier)[0], n-2, n-2, 2))
+            classifier = tf.reshape(classifier, (tf.shape(classifier)[0], k, 2))
 
             # Apply the activation:
             classifier = tf.nn.softmax(classifier, dim=-1)
 
         return classifier, regressor
+  
+    def downselect(self, regressor, classifier, anchors, ground_truth):
+        """
+        @brief      downselect regression output
+        
+        @param      self          The object
+        @param      regressor     The regressor
+        @param      classifier    The classifier
+        @param      anchors       The anchors
+        @param      ground_truth  The ground truth
+        
+        @return     { description_of_the_return_value }
+        
+        This function explicitly assumes batch is not an index in tensors
+        That is, only one batch at a time.
+
+        """
+
+        params = self._params.network_params()
 
 
-def select_anchors(ground_truth_bb_tensor, 
-                   anchor_bb_tensor,
-                   IoUs,
-                   n_target_anchors = 256,
-                   max_pos_anchors = 128, 
-                   IoU_threshold_positive = 0.7, 
-                   IoU_threshold_negative = 0.3):
+        #Anchors and ground_truth are in min/max format
 
-    # This function determines which ROIs (regressed) are to be used
-    # to calculate the loss functions.  It computes the IoU for all ROIs and
-    # any ROI that has IoU > IoU_threshold_positive is stored as a positive example.
-    # The number of positive anchors is filled until max_pos_anchors is reached.
-    # The rest of the anchors are return as negative examples.
-    # 
-    # A negative example must have an IoU threshold below the target threshold when
-    # compared to ALL ground_truth rois.
-    # 
-    # If no anchor has a postive IoU > threshold, the highest IoU to 
-    # a ground truth is selected as a positive example
-    # 
+        # To select anchors and compute the lost, we have to convert
+        # the regression output into real image coordinates.
+        # 
+        # Each regressor output R has a matched anchor, A.  The 4 components
+        # of R are related to A:
+        # R[0] == t_x == (x - x_A) / w_A # The difference in regressed coord / width
+        # R[1] == t_y == (y - y_A) / h_A # The difference in regressed coord / height
+        # R[2] == t_w == log(w/w_A) # log ratio of widths
+        # R[3] == t_h == log(h/h_A) # log ratio of heights
 
-    # THIS FUNCTION IS PURE NUMPY
+        
 
-    # We have the IoUs, so first is to see how many are over threshold:
-    
-    _pos = tf.where(IoUs > IoU_threshold_positive)
-    if len(_pos) == 0 :
-      # None are over threshold, so use argmax to find the best one:
-      _pos = numpy.unravel_index(numpy.argmax(IoUs), IoUs.shape)
+        with tf.variable_scope("reg_to_anchor"):
+            reg_width = tf.exp(regressor[:,2]) * (anchors[:,2] - anchors[:,0])
+            reg_height = tf.exp(regressor[:,3]) * (anchors[:,3] - anchors[:,1])
+            # reg_boxes[:,:,2] = tf.exp(reg_boxes[:,:,2]) # * (anchors[:,2] - anchors[:,0])
+            # reg_boxes[:,:,3] = tf.exp(reg_boxes[:,:,3]) * (anchors[:,3] - anchors[:,1])
 
-    # We have to find the 
+            # Width and height are converted, now do coordinates:
+            reg_x_ctr = regressor[:,0] * (anchors[:,2] - anchors[:,0]) + 0.5*(anchors[:,0] + anchors[:,2])
+            reg_y_ctr = regressor[:,1] * (anchors[:,3] - anchors[:,1]) + 0.5*(anchors[:,1] + anchors[:,3])
 
-    return tf.argmax(IoUs, axis=-1)
-    # return _pos
+            # Now convert from ctr/wh to min/max:
+            
+            # Move the centers to be the minima:
+            reg_x_min = reg_x_ctr - 0.5*reg_width
+            reg_y_min = reg_y_ctr - 0.5*reg_height
+
+            # Add the width to the start to get the max:
+            reg_x_max = reg_x_min + reg_width
+            reg_y_max = reg_y_min + reg_height
+
+        # Now, reg_x/y_min/max represents the regression output in min/max form
+        # We can next compute the IoU to the ground truth boxes:
+        
+        # First element is batch size, so take the second:
+        n_1 = reg_x_min.get_shape().as_list()[-1]
+        n_2 = ground_truth.get_shape().as_list()[1]
 
 
-    # return matched_anchors, ground_truths, positive_indexes
+
+        true_x_min, true_y_min, true_x_max, true_y_max = tf.split(ground_truth, 4, axis=-1)
+
+        reg_coords = tf.stack([reg_x_min, reg_y_min, reg_x_max, reg_y_max], axis = 1)
+
+
+        x1 = tf.maximum(true_x_min, reg_x_min)
+        y1 = tf.maximum(true_y_min, reg_y_min)
+        x2 = tf.minimum(true_x_max, reg_x_max)
+        y2 = tf.minimum(true_y_max, reg_y_max)
+
+
+        w = x2 - x1
+        h = y2 - y1
+
+        w = tf.nn.relu(w)
+        h = tf.nn.relu(h)
+
+        inter = (w) * (h )
+
+        area1 = (reg_x_max  - reg_x_min)  * (reg_y_max  - reg_y_min)
+        area2 = (true_x_min - true_x_max) * (true_y_min - true_y_max)
+        denom = area1 + area2 - inter
+
+        iou = inter / (area1 + area2 - inter)
+        iou = tf.nn.relu(iou)
+
+        # At this point, the iou is calculated and has the format
+        # [batch][truth_box][regressed_box]
+
+        # What we want is a selection of regressed boxes with score > 0.7
+        # and non max suppression.
+        # 
+        # First, select the boxes where the score is greater than 0.7:
+        
+        # For each regression box, select the truth box it matches to
+        # most closely:
+
+        # Best score for each regression box:
+        scores = tf.squeeze(tf.reduce_max(iou, axis=0))
+        scores_index = tf.squeeze(tf.argmax(iou, axis=0))
+
+        # Keep all of the indexes where the IoU is better than 0.7:
+        pos_anchor_indexes = tf.where(scores > 0.7)
+
+        # One issue with non_max_suppression: if no ROI is above threshold,
+        # Take the one with the highest score:
+        top_score_index = tf.argmax(scores)
+        # The top score index has to be reshaped to allow gather to work
+        # properly later on:
+        top_score_index = tf.expand_dims(top_score_index,axis=0)
+
+        # Now, use a conditional to determine if the pos_box_index should be
+        # the top_score_index alone or the output of non_max_suppression:
+
+        ious_above_threshold = tf.count_nonzero(pos_anchor_indexes) > 0
+
+        pos_anchor_indexes = tf.cond(ious_above_threshold,
+                                    true_fn = lambda: pos_anchor_indexes,
+                                    false_fn = lambda: top_score_index)
+
+
+        # Select all of the boxes where the value was better than 0.7 (or is top score):
+        # Only squeeze the middle axis to keep the result 2D, even if there
+        # is only one positive anchor
+        pos_reg_coords = tf.gather(reg_coords, pos_anchor_indexes)
+        
+        
+        # And their score:
+        # (The score also has to be wrapped in a conditional, to squeeze it 
+        # only when there is more than one score:)
+        pos_scores = tf.gather(scores, pos_anchor_indexes)
+        pos_scores = tf.cond(tf.rank(pos_scores) > 1,
+            true_fn = lambda: tf.squeeze(pos_scores, 1),
+            false_fn = lambda: pos_scores)
+
+        pos_reg_coords = tf.cond(tf.rank(pos_reg_coords) > 2,
+            true_fn = lambda: tf.squeeze(tf.gather(reg_coords, pos_anchor_indexes), axis=1),
+            false_fn = lambda: pos_reg_coords)
+
+
+        # return pos_reg_coords, tf.count_nonzero(pos_scores), pos_scores, ious_above_threshold
+ 
+        # # Non max suppress the boxes where the score was > 0.7
+        # # ####TODO
+        # # I think maybe this should use the classifier score?  Not sure.
+        # # Currently using IoU w/ ground truth score
+        pos_box_index = tf.image.non_max_suppression(
+                                    boxes=pos_reg_coords, 
+                                    scores=pos_scores, 
+                                    max_output_size=params['n_selected_regressors']/2, 
+                                    iou_threshold=0.7)
+
+        # return pos_box_index, pos_anchor_indexes, 
+
+        # Use the output of the non max suppression to slice out the 
+        # passed indexes that correspond to the original list of regressors
+        pos_anchor_indexes = tf.gather(pos_anchor_indexes, pos_box_index)
+
+        #Then, use the final list of anchor indexes to slice out the 
+        #relevant ground truth boxes:
+        pos_truth_indexes = tf.gather(scores_index, pos_anchor_indexes)
+
+        # Ok, do the same for the negative examples:
+
+        # Now, gather the boxes that had a max IoU of 0.3 with all truth boxes:
+        neg_anchor_indexes = tf.where(scores < 0.3)
+        # Select all of the boxes where the value was better than 0.7:
+        neg_reg_coords = tf.squeeze(tf.gather(reg_coords, neg_anchor_indexes ), axis=1)
+        # And their score:
+        neg_scores = tf.squeeze(tf.gather(scores, neg_anchor_indexes))
+
+
+        # Do non max suppression on these entries too:
+        neg_box_index = tf.image.non_max_suppression(
+            boxes=neg_reg_coords, 
+            scores=neg_scores, 
+            max_output_size=params['n_selected_regressors'], 
+            iou_threshold=0.7)
+        
+
+
+        # Use the output of the non max suppression to slice out the 
+        # passed indexes that correspond to the original list of regressors
+        neg_anchor_indexes = tf.gather(neg_anchor_indexes, neg_box_index)
+
+
+        neg_truth_indexes = tf.gather(scores_index, neg_anchor_indexes)
+
+
+        return (pos_anchor_indexes, 
+                pos_truth_indexes, 
+                neg_anchor_indexes, 
+                neg_truth_indexes)
+
+        # return selected_regressors, selected_classifiers, values
+
+    def regression_loss(self, regressor, pos_box_inds, 
+                        pos_true_inds, ground_truth, anchors):
+        """
+        @brief      Compute regression loss for RPN network
+        
+        @param      regressor       The full output of the regressor
+        @param      pos_box_inds    The regressor boxs selected above
+        @param      pos_true_inds   The corresponding true boxes
+        @param      regressor       The regressor
+        @param      box_label       The box label
+        
+        @return     { description_of_the_return_value }
+        """
+
+        # First, for all of the positive regression boxes, compute the modified
+        # coordinates for the ground truth boxes to the selected anchors
+        
+        pos_regression_coords = tf.gather
+
+        matched_anchors = tf.gather(anchors, pos_box_inds)
+
+        #Similarly, gather the matching true boxes:
+        matched_truths = tf.gather(ground_truth, pos_true_inds)
+
+        #  Convert the truth/anchor pairs into the regression coordinates
+
+
+
+        return matched_truths
+        

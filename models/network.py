@@ -12,16 +12,7 @@ class hyperparameters(object):
     def __init__(self):
         super(hyperparameters, self).__init__()
         self._network_params = dict()
-        self._training_params = dict()
         self._key_param_dict = dict()
-
-        self._key_param_dict.update({'base_lr' : 'blr' ,
-                                     'lr_decay' : 'lrd' ,
-                                     'decay_step' : 'ds' })
-
-
-    def training_params(self):
-        return self._training_params
 
     def network_params(self):
         return self._network_params

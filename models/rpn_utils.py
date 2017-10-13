@@ -1,44 +1,63 @@
 import numpy as np
 
-def anchors_whctrs_to_minmax(anchors, in_place = False):
+def boxes_whctrs_to_minmax(boxes, in_place = False):
     """
-    Map anchors from the (x_ctr, y_ctr, width, height) format
+    Map boxes from the (x_ctr, y_ctr, width, height) format
     to the (x_min, y_min, x_max, y_max) format
 
     This should work equally well for np arrays or tf tensors
     """
 
     if not in_place:
-        anchors = np.copy(anchors)
+        boxes = np.copy(boxes)
 
     # Move the centers to be the minima:
-    anchors[:,0] -= 0.5*anchors[:,2]
-    anchors[:,1] -= 0.5*anchors[:,3]
+    boxes[:,0] -= 0.5*boxes[:,2]
+    boxes[:,1] -= 0.5*boxes[:,3]
 
     # Add the width to the start to get the max:
-    anchors[:,2] += anchors[:,0] 
-    anchors[:,3] += anchors[:,1] 
+    boxes[:,2] += boxes[:,0] 
+    boxes[:,3] += boxes[:,1] 
 
-    return anchors
+    return boxes
 
-def anchors_minmax_to_whctrs(anchors, in_place = False):
+def boxes_minmax_to_whctrs(boxes, in_place = False):
     """
-    Map anchors from the (x_min, y_min, x_max, y_max) format
+    Map boxes from the (x_min, y_min, x_max, y_max) format
     to the (x_ctr, y_ctr, width, height) format
 
     This should work equally well for np arrays or tf tensors
     """
     if not in_place:
-        anchors = np.copy(anchors)
+        boxes = np.copy(boxes)
     # Calculate the widths:
-    anchors[:,2] = anchors[:2] - anchors[:,0]
-    anchors[:,3] = anchors[:3] - anchors[:,1]
+    boxes[:,2] = boxes[:2] - boxes[:,0]
+    boxes[:,3] = boxes[:3] - boxes[:,1]
 
     # Move the min to the center:
-    anchors[:,0] += 0.5*anchors[:,2]
-    anchors[:,1] += 0.5*anchors[:,3]
+    boxes[:,0] += 0.5*boxes[:,2]
+    boxes[:,1] += 0.5*boxes[:,3]
 
-    return anchors
+    return boxes
+
+def boxes_regcoord_to_whctrs(boxes, anchors):
+    """
+    Map the regressed coordinates to real coordinates
+    based on the anchors
+    """
+    # R[0] == t_x == (x - x_A) / w_A # The difference in regressed coord / width
+    # R[1] == t_y == (y - y_A) / h_A # The difference in regressed coord / height
+    # R[2] == t_w == log(w/w_A) # log ratio of widths
+    # R[3] == t_h == log(h/h_A) # log ratio of heights
+    # 
+    boxes[:,2] = tf.exponential(boxes[:,2]) * anchors[:,2] 
+    boxes[:,3] = tf.exponential(boxes[:,3]) * anchors[:,3] 
+
+    # Width and height are converted, now do coordinates:
+    boxes[:,0] = anchors[:,0] + anchors[:,2] * boxes[:,0] 
+    boxes[:,1] = anchors[:,1] + anchors[:,3] * boxes[:,1] 
+
+    return boxes
 
 def pad_anchors(input_anchors, n_tiles_x=32, n_tiles_y=32, 
                 step_size_x=16, step_size_y=16):
@@ -163,9 +182,9 @@ def numpy_IoU_minmax(bb1, bb2):
     @brief      Compute the Intersection over Union for two bounding boxes
     
     @param      bb1   Bounding Box 1, as (x_min, y_min, x_max, y_max)
-                    or (n1, x_min, y_min, x_max, y_max)
+                    or (n1), ( x_min, y_min, x_max, y_max)
     @param      bb2   Bounding Box 2, as (x_min, y_min, x_max, y_max)
-                    or (n1, x_min, y_min, x_max, y_max)
+                    or (n2), ( x_min, y_min, x_max, y_max)
     
     @return     Intersection over Union value, between 0 and 1
     """
@@ -204,20 +223,25 @@ def numpy_IoU_minmax(bb1, bb2):
                 bb2_arr[:,3]),
                 axis=0)
 
+    return x1
+
     w = x2 - x1
     h = y2 - y1
+
 
     inter = w*h
 
     aarea  = (bb1_arr[:,3] - bb1_arr[:,1])*(bb1_arr[:,2] - bb1_arr[:,0])
     barea  = (bb2_arr[:,3] - bb2_arr[:,1])*(bb2_arr[:,2] - bb2_arr[:,0])
 
+
     denom = aarea + barea - inter
-    mask = (denom == 0)
-    denom[mask] = 0.1
+    # mask = (denom == 0)
+    # denom[mask] = 0.1
 
     IoU = inter / (denom)
-    IoU[mask] = 0
+    # return IoU
+    # IoU[mask] = 0
     IoU[w <= 0] = 0
     IoU[h <= 0] = 0
     
