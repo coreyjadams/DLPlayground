@@ -313,16 +313,31 @@ class rpn(network):
         # First, for all of the positive regression boxes, compute the modified
         # coordinates for the ground truth boxes to the selected anchors
         
-        pos_regression_coords = tf.gather
 
         matched_anchors = tf.gather(anchors, pos_box_inds)
 
         #Similarly, gather the matching true boxes:
         matched_truths = tf.gather(ground_truth, pos_true_inds)
 
+        #As ever, deal with the inconsistent tensor rank when there 
+        #is only one successful pos_box_ind:
+
+        matched_truths = tf.cond(tf.rank(matched_truths) > 2,
+            true_fn = lambda: tf.squeeze(matched_truths, axis=1),
+            false_fn = lambda: matched_truths)
+
+        matched_anchors = tf.cond(tf.rank(matched_anchors) > 2,
+            true_fn = lambda: tf.squeeze(matched_anchors, axis=1),
+            false_fn = lambda: matched_anchors)
+
         #  Convert the truth/anchor pairs into the regression coordinates
 
+        # R[0] == t_x == (x - x_A) / w_A # The difference in regressed coord / width
+        # R[1] == t_y == (y - y_A) / h_A # The difference in regressed coord / height
+        # R[2] == t_w == log(w/w_A) # log ratio of widths
+        # R[3] == t_h == log(h/h_A) # log ratio of heights
 
+        # truth_reg_coords = tf.
 
-        return matched_truths
+        return matched_truths, matched_anchors
         
