@@ -50,8 +50,8 @@ def boxes_regcoord_to_whctrs(boxes, anchors):
     # R[2] == t_w == log(w/w_A) # log ratio of widths
     # R[3] == t_h == log(h/h_A) # log ratio of heights
     # 
-    boxes[:,2] = tf.exponential(boxes[:,2]) * anchors[:,2] 
-    boxes[:,3] = tf.exponential(boxes[:,3]) * anchors[:,3] 
+    boxes[:,2] = np.exp(boxes[:,2]) * anchors[:,2] 
+    boxes[:,3] = np.exp(boxes[:,3]) * anchors[:,3] 
 
     # Width and height are converted, now do coordinates:
     boxes[:,0] = anchors[:,0] + anchors[:,2] * boxes[:,0] 

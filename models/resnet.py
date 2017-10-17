@@ -75,7 +75,7 @@ class resnet(network):
                                               beta_regularizer=None,
                                               gamma_regularizer=None,
                                               training=is_training,
-                                              trainable=True,
+                                              trainable=is_training,
                                               name="BatchNorm",
                                               reuse=None)
             # ReLU:
@@ -91,7 +91,7 @@ class resnet(network):
                                  kernel_initializer=None,  # automatically uses Xavier initializer
                                  kernel_regularizer=None,
                                  activity_regularizer=None,
-                                 trainable=True,
+                                 trainable=is_training,
                                  name="Conv2D",
                                  reuse=None)
 
@@ -112,7 +112,7 @@ class resnet(network):
                                               beta_regularizer=None,
                                               gamma_regularizer=None,
                                               training=is_training,
-                                              trainable=True,
+                                              trainable=is_training,
                                               name="BatchNorm",
                                               reuse=None)
             # ReLU:
@@ -129,7 +129,7 @@ class resnet(network):
                                  kernel_initializer=None,  # automatically uses Xavier initializer
                                  kernel_regularizer=None,
                                  activity_regularizer=None,
-                                 trainable=True,
+                                 trainable=is_training,
                                  name="Conv2D",
                                  reuse=None)
 
@@ -177,7 +177,7 @@ class resnet(network):
                                               beta_regularizer=None,
                                               gamma_regularizer=None,
                                               training=is_training,
-                                              trainable=True,
+                                              trainable=is_training,
                                               name="BatchNorm",
                                               reuse=None)
             # ReLU:
@@ -193,7 +193,7 @@ class resnet(network):
                                  kernel_initializer=None,  # automatically uses Xavier initializer
                                  kernel_regularizer=None,
                                  activity_regularizer=None,
-                                 trainable=True,
+                                 trainable=is_training,
                                  name="Conv2D",
                                  reuse=None)
 
@@ -214,7 +214,7 @@ class resnet(network):
                                               beta_regularizer=None,
                                               gamma_regularizer=None,
                                               training=is_training,
-                                              trainable=True,
+                                              trainable=is_training,
                                               name="BatchNorm",
                                               reuse=None)
             # ReLU:
@@ -231,7 +231,7 @@ class resnet(network):
                                  kernel_initializer=None,  # automatically uses Xavier initializer
                                  kernel_regularizer=None,
                                  activity_regularizer=None,
-                                 trainable=True,
+                                 trainable=is_training,
                                  name="Conv2D",
                                  reuse=None)
 
@@ -247,7 +247,7 @@ class resnet(network):
                                  kernel_initializer=None,  # automatically uses Xavier initializer
                                  kernel_regularizer=None,
                                  activity_regularizer=None,
-                                 trainable=True,
+                                 trainable=is_training,
                                  name="Conv2D1x1",
                                  reuse=None)
 
@@ -272,7 +272,7 @@ class resnet(network):
                              activation=None,
                              use_bias=False,
                              bias_initializer=tf.zeros_initializer(),
-                             trainable=True,
+                             trainable=is_training,
                              name="InitialConv2D",
                              reuse=None)
 
@@ -302,7 +302,7 @@ class resnet(network):
                                                 beta_regularizer=None,
                                                 gamma_regularizer=None,
                                                 training=is_training,
-                                                trainable=True,
+                                                trainable=is_training,
                                                 name="BatchNorm",
                                                 reuse=None)
 
@@ -323,7 +323,7 @@ class resnet(network):
                                    kernel_regularizer=None,
                                    bias_regularizer=None,
                                    activity_regularizer=None,
-                                   trainable=True,
+                                   trainable=is_training,
                                    name="Conv2DBottleNeck",
                                    # name="convolution_globalpool_bottleneck1x1",
                                    reuse=None)

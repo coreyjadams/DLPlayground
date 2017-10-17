@@ -21,8 +21,6 @@ class hyperparameters(object):
     def get_string(self):
         s = ""
         for key in self._key_param_dict:
-            if key in self._training_params:
-                s += "_{}_{}".format(self._key_param_dict[key], self._training_params[key])
             if key in self._network_params:
                 s += "_{}_{}".format(self._key_param_dict[key], self._network_params[key])
         return s
