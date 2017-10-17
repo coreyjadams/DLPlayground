@@ -53,8 +53,8 @@ class image_loader(object):
         _out_image_arr = numpy.zeros((batch_size, self._image_height, self._image_width, 3))
 
         if "class" in mode:
-            _out_label = numpy.zeros((batch_size, len(self._meta.classes())))
-            _out_label[:] = 0
+            _out_label = numpy.zeros((batch_size, len(self._meta.classes()), 2))
+            _out_label[:,:,1] = 1
         else:
             _out_label = numpy.zeros((batch_size, self._max_roi, len(self._meta.classes())))
             _out_label[:] = 0
@@ -81,7 +81,8 @@ class image_loader(object):
             j = 0
             for cat, box in zip(img.categories(), img.bounding_boxes()):
                 if "class" in mode:
-                    _out_label[i,self._meta.class_index(cat)] = 1
+                    _out_label[i,self._meta.class_index(cat), 0] = 1
+                    _out_label[i,self._meta.class_index(cat), 1] = 0
                 else:
                     _out_label[i,j, self._meta.class_index(cat)] = 1
                 _out_bb[i, j, 0] = box[0] + _w_pad
