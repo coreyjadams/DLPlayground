@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy
 
-# This class reads in the meta data for the VOC07 dataset and let's you slice and dice it.
+# This class reads in the meta data for the VOC dataset and let's you slice and dice it.
 # It doesn't read in any images, just the meta once at initialization
 # and then you can load individual images in another scipt.
 
@@ -32,7 +32,7 @@ class voc_meta(object):
                         'train',
                         'tvmonitor']
         self._top_dir = top_dir
-        _f_base = self._top_dir + 'VOC2007/ImageSets/Main/'
+        _f_base = self._top_dir + '/ImageSets/Main/'
         # Read in the train, val, and trainval total sets:
         self._df_train    = pd.read_csv(_f_base + 'train.txt', 
                                         delim_whitespace = True,
@@ -51,7 +51,7 @@ class voc_meta(object):
             self.read_class(_class)
 
         # Read in the list of segmenatation images:
-        _f_base = self._top_dir + 'VOC2007/ImageSets/Segmentation/'
+        _f_base = self._top_dir + '/ImageSets/Segmentation/'
         self._seg_train    = numpy.loadtxt(_f_base + "train.txt")
         self._seg_val      = numpy.loadtxt(_f_base + "val.txt")
         self._seg_trainval = numpy.loadtxt(_f_base + "trainval.txt")
@@ -68,7 +68,7 @@ class voc_meta(object):
         return self._classes[index]
             
     def read_class(self, _class):
-        _f_base = self._top_dir + 'VOC2007/ImageSets/Main/{}_'.format(_class)
+        _f_base = self._top_dir + '/ImageSets/Main/{}_'.format(_class)
         _df_train    = pd.read_csv(_f_base + 'train.txt', 
                                     delim_whitespace = True,
                                     index_col=0,

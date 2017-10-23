@@ -10,7 +10,7 @@ class voc_image(object):
 
 
         # Read the xml file:
-        with open(top_dir + "VOC2007/Annotations/" + xml_file) as _raw_xml:
+        with open(top_dir + "/Annotations/" + xml_file) as _raw_xml:
             self._xml = BeautifulSoup(_raw_xml.read(), 'xml')
 
         self._width = int(self._xml.find("width").get_text())
@@ -39,11 +39,11 @@ class voc_image(object):
 
         # Load the images:
         _base_imname = xml_file.replace(".xml", "") + ".jpg"
-        self._base_image = ndimage.imread(top_dir + "VOC2007/JPEGImages/" + _base_imname, mode='RGB') * (1./255)
+        self._base_image = ndimage.imread(top_dir + "/JPEGImages/" + _base_imname, mode='RGB') * (1./255)
         if self._has_segmentation:
             _base_imname = xml_file.replace(".xml", "") + ".png"
-            self._seg_class = ndimage.imread(top_dir + "VOC2007/SegmentationClass/" + _base_imname)
-            self._seg_obj = ndimage.imread(top_dir + "VOC2007/SegmentationObject/" + _base_imname)
+            self._seg_class = ndimage.imread(top_dir + "/SegmentationClass/" + _base_imname)
+            self._seg_obj = ndimage.imread(top_dir + "/SegmentationObject/" + _base_imname)
 
 
     def image(self):
