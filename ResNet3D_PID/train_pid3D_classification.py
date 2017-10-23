@@ -20,9 +20,9 @@ from models import resnet3d
 
 # Set up the network we want to test:
 params = resnet3d.resnet3d_params()
-params.network_params()['n_blocks'] = 16
+params.network_params()['n_blocks'] = 20
 params.network_params()['include_fully_connected'] = False
-params.network_params()['n_initial_filters'] = 24
+params.network_params()['n_initial_filters'] = 30
 params.network_params()['downsample_interval'] = 4
 params.network_params()['initial_stride'] = 2
 params.network_params()['initial_kernel'] = 5
@@ -32,7 +32,7 @@ params.network_params()['activation'] = 'softmax'
 
 
 params.training_params()['NUM_CLASS'] = 5
-params.training_params()['BATCH'] = 6
+params.training_params()['BATCH'] = 12
 params.training_params()['TEST_BATCH'] = 48
 params.training_params()['LOGDIR'] = "logs/"
 params.training_params()['ITERATIONS'] = 50000
@@ -40,9 +40,9 @@ params.training_params()['SAVE_ITERATION'] = 1000
 params.training_params()['TEST_ITERATION'] = 50
 params.training_params()['RESTORE'] = False
 
-params.training_params()['base_lr'] = 1E-4
-params.training_params()['lr_decay'] = 0.99
-params.training_params()['decay_step']=100
+params.training_params()['base_lr'] = 5E-4
+params.training_params()['lr_decay'] = 0.1
+params.training_params()['decay_step']=40000
 
 
 LOGDIR = params.training_params()['LOGDIR']
@@ -127,7 +127,7 @@ with tf.Graph().as_default():
 
     # Build the network:
     logits = ResNet3D.build_network(input_tensor=data_tensor, n_output_classes=5,
-                                  is_training=True)
+                                  is_training=False)
 
     LOGDIR += ResNet3D.full_name()
     
@@ -153,7 +153,7 @@ with tf.Graph().as_default():
                                                decay_steps=params.training_params()['decay_step'],
                                                decay_rate=params.training_params()['lr_decay'],
                                                staircase=True)
-
+    
     lr_summary = tf.summary.scalar("Learning Rate", learning_rate)
     
     # Set up a training algorithm:

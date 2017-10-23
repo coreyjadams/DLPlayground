@@ -53,8 +53,7 @@ class image_loader(object):
         _out_image_arr = numpy.zeros((batch_size, self._image_height, self._image_width, 3))
 
         if "class" in mode:
-            _out_label = numpy.zeros((batch_size, len(self._meta.classes()), 2))
-            _out_label[:,:,1] = 1
+            _out_label = numpy.zeros((batch_size, len(self._meta.classes())))
         else:
             _out_label = numpy.zeros((batch_size, self._max_roi, len(self._meta.classes())))
             _out_label[:] = 0
@@ -81,8 +80,7 @@ class image_loader(object):
             j = 0
             for cat, box in zip(img.categories(), img.bounding_boxes()):
                 if "class" in mode:
-                    _out_label[i,self._meta.class_index(cat), 0] = 1
-                    _out_label[i,self._meta.class_index(cat), 1] = 0
+                    _out_label[i,self._meta.class_index(cat)] = 1
                 else:
                     _out_label[i,j, self._meta.class_index(cat)] = 1
                 _out_bb[i, j, 0] = box[0] + _w_pad
@@ -104,6 +102,67 @@ class image_loader(object):
 
         return _out_image_arr, _out_label, _out_bb
 
+    def get_next_val_batch(self, batch_size, mode="bb"):
+        # First, get the image labels need:
+        _image_indexes = self._meta.val_indexes(self._classes)
+
+        # Read in the images for this batch of data:
+        _this_batch_index = self._random.sample(_image_indexes, batch_size)
+
+        # Prepare output image storage:
+        _out_image_arr = numpy.zeros((batch_size, self._image_height, self._image_width, 3))
+
+        if "class" in mode:
+            _out_label = numpy.zeros((batch_size, len(self._meta.classes())))
+        else:
+            _out_label = numpy.zeros((batch_size, self._max_roi, len(self._meta.classes())))
+            _out_label[:] = 0
+
+
+        _out_bb = numpy.zeros((batch_size, self._max_roi, 4))
+
+        i = 0
+        for image in _this_batch_index:
+            # print image
+            _xml =  "{:06d}.xml".format(image)
+            img = voc_image(self._top_dir, _xml)
+
+            # Randomly pad the image to make the output the desired dimensions:
+            _delta_w = self._image_width  - img.width()
+            _delta_h = self._image_height - img.height()
+ 
+            _w_pad = self._random.randint(0, _delta_w-1)
+            _h_pad = self._random.randint(0, _delta_h-1)
+
+            _out_image_arr[i, _h_pad:-(_delta_h -_h_pad),_w_pad:-(_delta_w -_w_pad), :] = img.image()
+
+            
+            j = 0
+            for cat, box in zip(img.categories(), img.bounding_boxes()):
+                if "class" in mode:
+                    _out_label[i,self._meta.class_index(cat)] = 1
+                else:
+                    _out_label[i,j, self._meta.class_index(cat)] = 1
+                _out_bb[i, j, 0] = box[0] + _w_pad
+                _out_bb[i, j, 1] = box[1] + _h_pad
+                _out_bb[i, j, 2] = box[2] + _w_pad
+                _out_bb[i, j, 3] = box[3] + _h_pad
+                j += 1
+                if j > 9:
+                    break
+            
+                # Set the label, too:
+                # 
+            i += 1
+
+        self._current_images  = _out_image_arr
+        self._current_labels  = _out_label
+        self._current_bb      = _out_bb
+        self._current_indexes = _this_batch_index
+
+        return _out_image_arr, _out_label, _out_bb
+    
+    
     def get_next_train_image(self, mode="bb"):
         # First, get the image labels need:
         _image_indexes = self._meta.train_indexes(self._classes)

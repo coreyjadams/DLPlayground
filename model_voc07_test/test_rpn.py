@@ -17,7 +17,7 @@ conv_params.network_params()['initial_kernel'] = 5
 conv_params.network_params()['bottleneck'] = False
 conv_params.network_params()['weight_decay'] = 1E-3
 conv_params.network_params()['activation'] = 'softmax'
-
+conv_params.network_params()['restore_file'] = "/home/cadams/DLPlayground/model_voc07_test/logs/rpn_resnet/resnet_ik_5_nb_8_di_2_is_2_B_False_nf_12//checkpoints/save-5000"
 
 # Set up the network we want to test:
 rpn_params = rpn.rpn_params()
@@ -28,32 +28,46 @@ rpn_params.network_params()['n_selected_regressors'] = 56
 train_params = dict()
 train_params['LOGDIR'] = "logs/rpn_resnet/"
 train_params['ITERATIONS'] = 10000
-train_params['SAVE_ITERATION'] = 50
+train_params['SAVE_ITERATION'] = 500
 train_params['RESTORE'] = False
 train_params['RESTORE_INDEX'] = -1
 train_params['LEARNING_RATE'] = 0.0001
 
-# Set up the graph:
+# # Set up the graph:
+# with tf.Graph().as_default():
+
+#     N_MAX_TRUTH = 10
+#     # Set input data and label for training
+#     data_tensor = tf.placeholder(tf.float32, [1, 512,512,3], name='x')
+#     label_tensor = tf.placeholder(tf.float32, [N_MAX_TRUTH, 20], name='labels')
+#     box_label = tf.placeholder(tf.float32, [N_MAX_TRUTH, 4], name='truth_anchors')
+
+#     # Let the convolutional part of the network be independant
+#     # of the classifiers:
+    
+#     final_conv_layer = conv_net.build_network(input_tensor=data_tensor,
+#                                               is_training=True)    
+#     conv_names = tf.trainable_variables()
+    
+# tf.reset_default_graph()
+
 with tf.Graph().as_default():
-
-
+    
     N_MAX_TRUTH = 10
     # Set input data and label for training
     data_tensor = tf.placeholder(tf.float32, [1, 512,512,3], name='x')
     label_tensor = tf.placeholder(tf.float32, [N_MAX_TRUTH, 20], name='labels')
     box_label = tf.placeholder(tf.float32, [N_MAX_TRUTH, 4], name='truth_anchors')
-
-
-
-
-
-    # Let the convolutional part of the network be independant
-    # of the classifiers:
     
-    conv_net = resnet.resnet(conv_params)
-    final_conv_layer = conv_net.build_network(input_tensor=data_tensor,
-                                              is_training=True)    
 
+    conv_net = resnet.resnet(conv_params)
+    with tf.variable_scope("ResNet"):
+        final_conv_layer = conv_net.build_network(input_tensor=data_tensor,
+                                                  is_training=False)  
+    
+    conv_names = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="ResNet")
+
+    
     RPN = rpn.rpn(rpn_params)
     classifier, regressor = RPN.build_rpn(final_conv_layer=final_conv_layer, 
                                               is_training=True)
@@ -167,22 +181,36 @@ with tf.Graph().as_default():
     # # Set up a saver:
     train_writer = tf.summary.FileWriter(LOGDIR)
 
+    other_vars = []
+    # print tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+    for n in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):        
+        if n not in conv_names:
+            other_vars.append(n)
+            
+    # print other_vars
+    
 
     print "Initialize session ..."
     with tf.Session() as sess:
         
-        sess.run(tf.global_variables_initializer())
-
+        print 
+        print "Train params restore is " + str(train_params['RESTORE'])
+        print 
+        
         if not train_params['RESTORE']:
-            sess.run(tf.global_variables_initializer())
+            # Restore only conv net weights
             train_writer.add_graph(sess.graph)
-            saver = tf.train.Saver()
+            saver = tf.train.Saver(var_list = conv_names)
+            saver.restore(sess, conv_params.network_params()['restore_file'])
+            # Set up a saver for ALL variables:
+            all_saver = tf.train.Saver()
+            # Initialize other variables:
+            sess.run(tf.variables_initializer(other_vars))
         else: 
             latest_checkpoint = tf.train.latest_checkpoint(LOGDIR+"/checkpoints/")
             print latest_checkpoint
-            saver = tf.train.Saver()
-            saver.restore(sess, latest_checkpoint)
-
+            all_saver = tf.train.Saver()
+            all_saver.restore(sess, latest_checkpoint)
 
         print "Begin training ..."
         # Run training loop
@@ -228,7 +256,7 @@ with tf.Graph().as_default():
             
             # Save the model out:
             if step != 0 and step % train_params['SAVE_ITERATION'] == 0:
-                saver.save(
+                all_saver.save(
                     sess,
                     LOGDIR+"/checkpoints/save",
                     global_step=step)
