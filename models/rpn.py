@@ -40,7 +40,7 @@ class rpn(network):
         with tf.variable_scope("RPN-FC"):
             x = tf.layers.conv2d(final_conv_layer,
                                  512,
-                                 kernel_size=[n, m],
+                                 kernel_size=[3, 3],
                                  strides=[1, 1],
                                  padding='valid',
                                  activation=None,
@@ -53,7 +53,7 @@ class rpn(network):
                                  reuse=None)
 
 
-        k = (n - 2)*(m - 2)*params['n_anchors_per_box']
+        k = params['n_anchors_per_box']
 
         with tf.variable_scope("RPN-reg"):
             regressor = tf.layers.conv2d(x,
@@ -71,7 +71,7 @@ class rpn(network):
                                          reuse=None)
 
             # Reshape the regressor into the feature map pools it was using:
-            regressor = tf.reshape(regressor, (tf.shape(regressor)[0], k,4))
+            # regressor = tf.reshape(regressor, (tf.shape(regressor)[0], k,4))
 
 
         with tf.variable_scope("RPN-cls"):
@@ -90,7 +90,7 @@ class rpn(network):
                                           reuse=None)        
 
             # Reshape the classifier into the feature map pools it was using:
-            classifier = tf.reshape(classifier, (tf.shape(classifier)[0], k, 2))
+            # classifier = tf.reshape(classifier, (tf.shape(classifier)[0], k, 2))
 
             # Apply the activation:
             classifier = tf.nn.softmax(classifier, dim=-1)

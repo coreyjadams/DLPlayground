@@ -21,14 +21,14 @@ conv_params.network_params()['activation'] = 'softmax'
 
 train_params = dict()
 train_params['LOGDIR'] = "logs/rpn_resnet/"
-train_params['ITERATIONS'] = 7001
+train_params['ITERATIONS'] = 12000
 train_params['SAVE_ITERATION'] = 1000
 train_params['RESTORE'] = True
 train_params['RESTORE_INDEX'] = -1
-train_params['LEARNING_RATE'] = 0.00005
+train_params['LEARNING_RATE'] = 0.00001
 train_params['DECAY_STEP'] = 100
 train_params['DECAY_RATE'] = 0.99
-train_params['BATCH_SIZE'] = 24
+train_params['BATCH_SIZE'] = 12
 
 # Set up the graph:
 with tf.Graph().as_default():
@@ -171,7 +171,7 @@ with tf.Graph().as_default():
         # Run training loop
         # while not sv.should_stop():
         step = 0
-        loader = image_loader("./")
+        loader = image_loader("VOC2007")
 
         while step < train_params['ITERATIONS']:
         # for i in xrange(5):

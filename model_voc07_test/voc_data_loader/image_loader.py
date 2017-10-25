@@ -67,13 +67,17 @@ class image_loader(object):
             _xml =  "{:06d}.xml".format(image)
             img = voc_image(self._top_dir, _xml)
 
+            # Compute the mean of the image:
+            mean_rgb = numpy.mean(img.image(), axis=(0,1))
+            
             # Randomly pad the image to make the output the desired dimensions:
             _delta_w = self._image_width  - img.width()
             _delta_h = self._image_height - img.height()
  
             _w_pad = self._random.randint(0, _delta_w-1)
             _h_pad = self._random.randint(0, _delta_h-1)
-
+    
+            _out_image_arr[i,:,:,:] += mean_rgb
             _out_image_arr[i, _h_pad:-(_delta_h -_h_pad),_w_pad:-(_delta_w -_w_pad), :] = img.image()
 
             

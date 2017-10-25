@@ -17,7 +17,7 @@ conv_params.network_params()['initial_kernel'] = 5
 conv_params.network_params()['bottleneck'] = False
 conv_params.network_params()['weight_decay'] = 1E-3
 conv_params.network_params()['activation'] = 'softmax'
-conv_params.network_params()['restore_file'] = "/home/cadams/DLPlayground/model_voc07_test/logs/rpn_resnet/resnet_ik_5_nb_8_di_2_is_2_B_False_nf_12//checkpoints/save-5000"
+conv_params.network_params()['restore_file'] = "/home/cadams/DLPlayground/model_voc07_test/logs/rpn_resnet/resnet_ik_5_nb_8_di_2_is_2_B_False_nf_12//checkpoints/save-12000"
 
 # Set up the network we want to test:
 rpn_params = rpn.rpn_params()
@@ -27,8 +27,8 @@ rpn_params.network_params()['n_selected_regressors'] = 56
 
 train_params = dict()
 train_params['LOGDIR'] = "logs/rpn_resnet/"
-train_params['ITERATIONS'] = 10000
-train_params['SAVE_ITERATION'] = 500
+train_params['ITERATIONS'] = 100000
+train_params['SAVE_ITERATION'] = 5000
 train_params['RESTORE'] = False
 train_params['RESTORE_INDEX'] = -1
 train_params['LEARNING_RATE'] = 0.0001
@@ -72,6 +72,8 @@ with tf.Graph().as_default():
     classifier, regressor = RPN.build_rpn(final_conv_layer=final_conv_layer, 
                                               is_training=True)
 
+
+    
     # The previous functions work with batch_size == 1 to allow interface with
     # other code, particularly for the conv nets.
     # 
@@ -90,7 +92,12 @@ with tf.Graph().as_default():
     n_anchors_x -= 2
     n_anchors_y -= 2
 
+    n_anchors_total = n_anchors_x*n_anchors_y*rpn_params.network_params()['n_anchors_per_box']
 
+    classifier = tf.reshape(classifier, (n_anchors_total, 2))
+    regressor = tf.reshape(regressor, (n_anchors_total, 4))
+    
+    
     _base_anchors = rpn_utils.generate_anchors(base_size = 16*3, 
                                                ratios = [0.5, 1, 2.0], 
                                                scales = [2,4,6])
@@ -216,7 +223,7 @@ with tf.Graph().as_default():
         # Run training loop
         # while not sv.should_stop():
         step = 0
-        loader = image_loader("./")
+        loader = image_loader("VOC2007")
 
         while step < train_params['ITERATIONS']:
         # for i in xrange(50):
@@ -243,6 +250,7 @@ with tf.Graph().as_default():
                            anchors : _anchors})
 
 
+            
             # print training accuracy every 10 steps:
             # if i % 10 == 0:
             #     training_accuracy, loss_s, accuracy_s, = sess.run([accuracy, loss_summary, acc_summary],
@@ -276,13 +284,11 @@ with tf.Graph().as_default():
 
 
             # # train_writer.add_summary(summary, i)
-            sys.stdout.write(
-                'Training in progress @ step %d\r' % (step))
-            sys.stdout.flush()
+            if step % 50 == 0:
+                print 'Training in progress @ step ' + str(step)
 
         # print "\nFinal training loss {}, accuracy {}".format(loss, acc)
         # data, label = mnist.test.next_batch(2000)
-        sys.stdout.flush()
         
         # [l, a, summary] = sess.run([cross_entropy, accuracy, merged_summary], feed_dict={
         #         data_tensor: data, label_tensor: label})
