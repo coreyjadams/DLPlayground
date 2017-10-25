@@ -37,9 +37,9 @@ class rpn(network):
         n = final_conv_layer.get_shape().as_list()[1]
         m = final_conv_layer.get_shape().as_list()[2]
     
-        with tf.variable_scope("RPN-FC"):
+        with tf.variable_scope("RPN-Subsample"):
             x = tf.layers.conv2d(final_conv_layer,
-                                 512,
+                                 256,
                                  kernel_size=[3, 3],
                                  strides=[1, 1],
                                  padding='valid',
@@ -49,7 +49,7 @@ class rpn(network):
                                  kernel_regularizer=None,
                                  activity_regularizer=None,
                                  trainable=True,
-                                 name="Conv2DNxN",
+                                 name="Conv2D3x3",
                                  reuse=None)
 
 

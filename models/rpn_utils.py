@@ -1,4 +1,5 @@
 import numpy as np
+import random
 
 def boxes_whctrs_to_minmax(boxes, in_place = False):
     """
@@ -112,6 +113,18 @@ def generate_anchors(base_size = 16, ratios = [0.5, 1, 2.0],
     return np.reshape(final_anchors, (n_anchors, 4))
 
 
+def prune_noninternal_anchors(_anchors, image_size):
+
+    inds_inside = np.where(
+        (_anchors[:, 0] >= image_size[0]) &
+        (_anchors[:, 1] >= image_size[1]) &
+        (_anchors[:, 2] <  image_size[2]) &  # width
+        (_anchors[:, 3] <  image_size[3])    # height
+    )[0]
+
+    return _anchors[inds_inside]
+
+
 def numpy_IoU_xyctrs(bb1, bb2):
     """
     @brief      Compute the Intersection over Union for two bounding boxes
@@ -223,7 +236,6 @@ def numpy_IoU_minmax(bb1, bb2):
                 bb2_arr[:,3]),
                 axis=0)
 
-    return x1
 
     w = x2 - x1
     h = y2 - y1
@@ -245,14 +257,13 @@ def numpy_IoU_minmax(bb1, bb2):
     IoU[w <= 0] = 0
     IoU[h <= 0] = 0
     
-    return np.squeeze(np.reshape(IoU, (n_1,n_2)))
+    return np.reshape(IoU, (n_1,n_2))
 
 def numpy_select_label_anchors_minmax(_ground_truths, 
                                       _anchors, 
-                                      _positive_threshold, 
-                                      _negative_threshold,
-                                      _image_width=512,
-                                      _image_height=512):
+                                      _positive_threshold = 0.7, 
+                                      _negative_threshold = 0.3,
+                                      _n_targets= 128):
     """
     Compute the labels for anchors based on ground truth.
     Anchors that have IOU with a ground truth above _positve_threshold
@@ -262,23 +273,86 @@ def numpy_select_label_anchors_minmax(_ground_truths,
     
     # Prune anchors that sit over the edge of the images
     
-    inds_inside = np.where(
-        (_anchors[:, 0] >= 0) &
-        (_anchors[:, 1] >= 0) &
-        (_anchors[:, 2] < _image_width) &  # width
-        (_anchors[:, 3] < _image_height)    # height
-    )[0]
+
+
+    _possible_anchors = _anchors 
 
     # Compute the IoU for these anchors with the ground truth boxes:
-    iou = numpy_IoU_minmax(_ground_truths, _anchors)
-    
+    iou = numpy_IoU_minmax(_ground_truths, _possible_anchors)
+
+
+
+
     # For each ground truth, we select the anchor that has the highest overlap:
     
-    _best_anchors = numpy.argmax(iou, axis=-1)
-    _best_anchor_iou = numpy.max(iou, axis=-1)
-    
+
+    _best_anchors = np.argmax(iou, axis=-1)
+    _best_anchor_iou = np.max(iou, axis=1)
+
+
+    gt_id = np.arange(0, len(_best_anchors))
+
+
+    _best_anchor_indexs = [gt_id, _best_anchors]
+        
     # Additionally, select anchors with an IOU greater than the positive threshold:
-    _positive_anchors = 
+    _positive_anchors = np.where(iou > 0.7)
+    
+    # For negative anchors, we need to make sure each anchor has an IoU with all 
+    # ground truth that is at most 0.3
+    _worst_anchors = np.max(iou.T, axis=1)
+
+    _neg_anchors = np.where(_worst_anchors < 0.3)
+
+    # print _neg_anchors[0][0:5]
+    # print _neg_anchors[1][0:5]
+
+    # We need to keep track of the label for each anchor, as well as it's matched
+    # ground truth box
+
+    labels = np.full(iou.shape, -1)
+
+    labels[_positive_anchors] = 1
+    # Assign the negative labels first, so it doesn't clobber the best IoU if they 
+    # are all really low
+    labels[:,_neg_anchors] = 0
+
+    labels[_best_anchor_indexs] = 1
+
+    # Now, we know where the anchors are positive and negative (or don't care)
+    # We create a list of anchors (positive and negative)    
+
+    # Gather the positive labels:
+    pos_gt, pos_anchors = np.where(labels == 1)
+    n_pos_labels = len(pos_gt)
+
+    neg_gt, neg_anchors = np.where(labels == 0)
+    n_neg_labels = len(neg_gt)
+
+    # Downselect:
+
+    if n_pos_labels > (_n_targets / 2):
+        pos_labels = np.random.choice(len(pos_gt), size=(int(_n_targets/2)), replace=False)
+        pos_gt = pos_gt[pos_labels]
+        pos_anchors = pos_anchors[pos_labels]
+        n_pos_labels = len(pos_gt)
+        pass
+    if n_neg_labels > (_n_targets - n_pos_labels):
+        neg_labels = np.random.choice(len(neg_gt), size=(_n_targets - n_pos_labels), replace=False)
+        neg_gt = neg_gt[neg_labels]
+        neg_anchors = neg_anchors[neg_labels]
+        print neg_labels.shape
+
+    # Join everything together:
+    _gt = np.concatenate([pos_gt, neg_gt])
+    _matched_anchors = np.concatenate([pos_anchors, neg_anchors])
+    _labels = np.zeros((_n_targets))
+    _labels[0:len(pos_gt)] = 1
+
+    return _labels, _gt, _matched_anchors
+
+
+
     
     
     
