@@ -23,7 +23,7 @@ conv_params.network_params()['restore_file'] = "/home/cadams/DLPlayground/model_
 rpn_params = rpn.rpn_params()
 rpn_params.network_params()['n_anchors_per_box'] = 9
 rpn_params.network_params()['weight_decay'] = 1E-3
-rpn_params.network_params()['n_selected_regressors'] = 56
+rpn_params.network_params()['n_selected_regressors'] = 128
 
 train_params = dict()
 train_params['LOGDIR'] = "logs/rpn_resnet/"

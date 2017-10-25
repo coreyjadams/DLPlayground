@@ -1,92 +1,42 @@
-import tensorflow as tf
+# import tensorflow as tf
 import sys
 
 import numpy
 from voc_data_loader import voc_meta, image_loader
 
-from models import rpn
-
-# Set up the graph:
-with tf.Graph().as_default():
-
-    MAX_N_TRUTH_BOXES = 10
-
-    # Set input data and label for training
-    data_tensor = tf.placeholder(tf.float32, [512,512,3], name='x')
-    label_tensor = tf.placeholder(tf.float32, [MAX_N_TRUTH_BOXES,  20], name='labels')
-    box_label = tf.placeholder(tf.float32, [MAX_N_TRUTH_BOXES, 4], name='truth_anchors')
-
-    # positive_labels = tf.reduce_sum(label_tensor, axis=-1)
-
-    _anchors = rpn.pad_anchors(rpn.generate_anchors(scales = numpy.asarray([4,8,16])))
-    anchors = tf.placeholder(tf.float32, _anchors.shape, name="anchors")
+from models import rpn_utils
 
 
-    # # mask = tf.equal(positive_labels, empty)
+MAX_N_TRUTH_BOXES = 10
 
-    # true_label_indexes = tf.where(positive_labels > 0)
+# positive_labels = tf.reduce_sum(label_tensor, axis=-1)
 
-    # forced_mask = [[True, True, False, False, False, False, False, False, False,False],
-    #                # [True, True, True, False, False, False, False, False, False,False],
-    #                # [True, True, False, False, False, False, False, False, False,False],
-    #                # [True, True, False, False, False, False, False, False, False,False]
-    #                ]
-    ious = rpn.compute_IoU(box_label, anchors)
+_anchors = rpn_utils.pad_anchors(
+                rpn_utils.generate_anchors(base_size = 16*3, 
+                                           ratios = [0.5, 1, 2.0], 
+                                           scales = [2,4,8]))
 
-    # No need to actually remove the empty elements, just need to operate on them
-    # Currently anchors are set as (x_center, y_center, width, height):
-    
+_anchors = rpn_utils.boxes_whctrs_to_minmax(_anchors)
+
+_anchors = rpn_utils.prune_noninternal_anchors(_anchors, [0,0,512,512])
 
 
-    loader = image_loader("./", rand_seed=0)
+seed = int(5000*numpy.random.rand(1))
+print "seed is {}".format(seed)
+loader = image_loader("VOC2007",seed)
+# loader = image_loader("VOC2007",3300)
+# loader = image_loader("VOC2007",2227)
+data, labels, boxes = loader.get_next_train_image()
+# labels = 
 
-    with tf.Session() as sess:
-
-        data, labels, boxes = loader.get_next_train_image()
-
-        # print labels
-        print "True box 1 {}".format(boxes[0])
-        print "True box 2 {}".format(boxes[1])
-        print "True box 3 {}".format(boxes[2])
-
-        print numpy.unique(_anchors[:2])
-
-        ious = sess.run(ious, feed_dict={label_tensor : labels,
-                                         box_label : boxes, 
-                                         anchors : _anchors})
-        print  "Computed ious shape: {}".format(ious.shape)
-
-        print "Index of iou over 0.7 for true box 1: {}".format(numpy.where(ious[0,:] > 0.7))
-        print "Index of iou over 0.7 for true box 2: {}".format(numpy.where(ious[1,:] > 0.7))
-        # print _anchors[6019]
-
-        # max_index = numpy.unravel_index(numpy.argmax(ious), ious.shape)
-        # print rpn.single_IoU(boxes[1], _anchors[3])
-
-        # print ious[max_index]
-
-        # Possible method: pull IoUs from tf, figure out which indexes get positive and
-        # which get negative values (easier in numpy, with conditionals), then mask 
-        # tensorflow tensors for computation of loss (reg and cls)
-        # Mask can be an array of 0.0 or 1.0 with same shape as the reg and cls output.
-        # reg mask is only 1.0 for the positive examples (IoU > 0.7 OR max IoU if all 
-        # below threshold)
-        # cls mask is 1.0 for positive OR negative examples, and 0.0 otherwise.
-        # 
-        # Still need to do nonmaximal supression
+boxes = numpy.squeeze(boxes)
 
 
-        # print boxes
+labels, ground_truths, matched_anchors = rpn_utils.numpy_select_label_anchors_minmax(boxes, _anchors)
 
-        # indexes = sess.run([positive_labels], feed_dict={label_tensor : labels,box_label : boxes})
 
-        # print len(boxes)
-        # print len(_anchors)
-        # for i in xrange(len(boxes)):
-        #     for j in xrange(len(_anchors)):
-        #         print "Box {}, Anchor {}, index {}: {} - {} = {}".format(
-        #             i, j, i*9 + j,
-        #             rpn.single_IoU(boxes[i], _anchors[j]),
-        #             ious[i][j],
-        #             rpn.single_IoU(boxes[i], _anchors[j]) - ious[i][j])
-        # print ious
+
+print "Positive labels: {}".format(numpy.count_nonzero(labels == 1))
+print "Negative labels: {}".format(numpy.count_nonzero(labels == 0))
+print "Don't Care labels: {}".format(numpy.count_nonzero(labels == -1))
+print "Labels shape: {}".format(labels.shape)
