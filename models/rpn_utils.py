@@ -247,54 +247,39 @@ def numpy_IoU_minmax(bb1, bb2):
     
     return np.squeeze(np.reshape(IoU, (n_1,n_2)))
 
-
-def compute_IoU(bb1_arr, bb2_arr):
+def numpy_select_label_anchors_minmax(_ground_truths, 
+                                      _anchors, 
+                                      _positive_threshold, 
+                                      _negative_threshold,
+                                      _image_width=512,
+                                      _image_height=512):
     """
-    @brief      Compute the Intersection over Union for two bounding boxes
-    
-    @param      bb1_arr   Bounding Box 1 list, as 
-                (n_boxes, x_center, y_center, width, height)
-    @param      bb2_arr   Bounding Box 2, as 
-                (n_boxes, x_center, y_center, width, height)
-    
-    @return     Intersection over Union value, between 0 and 1, 
-                array of shape (bb1_arr, bb2_arr)
+    Compute the labels for anchors based on ground truth.
+    Anchors that have IOU with a ground truth above _positve_threshold
+    are tagged as positive, similarly if IOU is below _negative_threshold
+    with all ground_truths the anchor is negative
     """
     
-    # There are assumed to be a fixed number of bb for truths and anchors coming in, 
-    # such that this is OK to be vectorized:
+    # Prune anchors that sit over the edge of the images
     
-    n_1 = bb1_arr.get_shape().as_list()[0]
-    n_2 = bb2_arr.get_shape().as_list()[0]
+    inds_inside = np.where(
+        (_anchors[:, 0] >= 0) &
+        (_anchors[:, 1] >= 0) &
+        (_anchors[:, 2] < _image_width) &  # width
+        (_anchors[:, 3] < _image_height)    # height
+    )[0]
 
-    bb1_arr = tf.reshape(tf.tile(bb1_arr, [1, n_2]), (n_1*n_2, 4))
-    bb2_arr = tf.tile(bb2_arr, [n_1, 1])
-
-    # print bb1_arr.get_shape()
-    # print bb2_arr.get_shape()
-
-    x1 = tf.maximum(bb1_arr[:,0]  - 0.5*bb1_arr[:,2], 
-                    bb2_arr[:,0] - 0.5*bb2_arr[:,2])
-    y1 = tf.maximum(bb1_arr[:,1]  - 0.5*bb1_arr[:,3], 
-                    bb2_arr[:,1] - 0.5*bb2_arr[:,3])
-    x2 = tf.minimum(bb1_arr[:,0] + 0.5*bb1_arr[:,2], 
-                    bb2_arr[:,0] + 0.5*bb2_arr[:,2])
-    y2 = tf.minimum(bb1_arr[:,1] + 0.5*bb1_arr[:,3], 
-                    bb2_arr[:,1] + 0.5*bb2_arr[:,3])
-
-    w = x2 - x1 +1
-    h = y2 - y1 +1
-
-    # Instead of trying to find all the negative values and such ...
-    # Just use ReLU to map w and h to positive values:
-    w = tf.nn.relu(w)
-    h = tf.nn.relu(h)
-
-
-    inter = w*h 
-    aarea  = (bb1_arr[:,3]  + 1) * (bb1_arr[:,2]  + 1)
-    barea  = (bb2_arr[:,3] + 1) * (bb2_arr[:,2] + 1)
-
-    IoU = tf.divide(inter , (aarea + barea - inter))
-
-    return tf.reshape(IoU, (n_1, n_2))
+    # Compute the IoU for these anchors with the ground truth boxes:
+    iou = numpy_IoU_minmax(_ground_truths, _anchors)
+    
+    # For each ground truth, we select the anchor that has the highest overlap:
+    
+    _best_anchors = numpy.argmax(iou, axis=-1)
+    _best_anchor_iou = numpy.max(iou, axis=-1)
+    
+    # Additionally, select anchors with an IOU greater than the positive threshold:
+    _positive_anchors = 
+    
+    
+    
+    
