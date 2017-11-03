@@ -8,9 +8,6 @@ from voc_data_loader import voc_meta, voc_image
 def main():
     # # Set up larcv saver:
 
-    io = larcv.IOManager(larcv.IOManager.kWRITE)
-    io.set_out_file('voc_larcv_test.root')
-    io.initialize()
 
     _top_level = "VOC2007"
     _base_name = "voc07_larcv"
@@ -18,26 +15,61 @@ def main():
     # Now, need to load the images
     _voc_metadata = voc_meta("VOC2007")
 
-    # Get the first image:
+    verbose = True 
+
+    # Training set, no segmentation:
     train_all_indexes = _voc_metadata.train_indexes(None, _seg_indexes=False)
-    train_seg_indexes = _voc_metadata.train_indexes(None, _seg_indexes=True)
-    print len(indexes)
-    for index in indexes[4:10]:
-        # image = indexes[index]
+    io = larcv.IOManager(larcv.IOManager.kWRITE)
+    io.set_out_file(_base_name + "_train.root")
+    io.initialize()
+    for index in train_all_indexes[0:10]:
+        if verbose:
+            print "Train set, no seg, index {}".format(index)
         _xml =  "{:06d}.xml".format(index)
         img = voc_image('VOC2007', _xml)
-        # image_to_larcv(img, io, run=7)
+        image_to_larcv(img, io, _voc_metadata, index=index, run=7, include_segmentation=False)
+    io.finalize()
 
+    #Training set, with segmentation:
+    train_seg_indexes = _voc_metadata.train_indexes(None, _seg_indexes=True)
+    io = larcv.IOManager(larcv.IOManager.kWRITE)
+    io.set_out_file(_base_name + "_seg_train.root")
+    io.initialize()
+    for index in train_seg_indexes[0:10]:
+        if verbose:
+            print "Train set, seg, index {}".format(index)
+        _xml =  "{:06d}.xml".format(index)
+        img = voc_image('VOC2007', _xml)
+        image_to_larcv(img, io, _voc_metadata, index=index, run=7, include_segmentation=True)
+    io.finalize()
+
+    #Validation set, no segmentation:
     val_all_indexes = _voc_metadata.val_indexes(None, _seg_indexes=False)
-    val_seg_indexes = _voc_metadata.val_indexes(None, _seg_indexes=True)
-    print len(indexes)
+    io = larcv.IOManager(larcv.IOManager.kWRITE)
+    io.set_out_file(_base_name + "_val.root")
+    io.initialize()
+    for index in val_all_indexes[0:10]:
+        if verbose:
+            print "Validation set, no seg, index {}".format(index)
+        _xml =  "{:06d}.xml".format(index)
+        img = voc_image('VOC2007', _xml)
+        image_to_larcv(img, io, _voc_metadata, index=index, run=7, include_segmentation=False)
+    io.finalize()
 
+    val_seg_indexes = _voc_metadata.val_indexes(None, _seg_indexes=True)
+    io = larcv.IOManager(larcv.IOManager.kWRITE)
+    io.set_out_file(_base_name + "_seg_val.root")
+    io.initialize()
+    for index in val_seg_indexes[0:10]:
+        if verbose:
+            print "Validation set, seg, index {}".format(index)
+        _xml =  "{:06d}.xml".format(index)
+        img = voc_image('VOC2007', _xml)
+        image_to_larcv(img, io, _voc_metadata, index=index, run=7, include_segmentation=False)
     io.finalize()
 
 
-
-
-def image_to_larcv(img, io, run=1, include_segmentation=False):
+def image_to_larcv(img, io, _voc_metadata, index, run=1, include_segmentation=False):
 
     image2d_array = io.get_data('image2d', 'voc')
     particle_array = io.get_data('particle', 'voc')
@@ -92,14 +124,12 @@ def image_to_larcv(img, io, run=1, include_segmentation=False):
             labels = numpy.unique(_seg_obj_image)
             clusterpixel2d_obj = larcv.ClusterPixel2D()
             clusterpixel2d_obj.meta(meta)
-            print labels
             for label in labels:
                 if label == 0:
                     continue
                 voxset = larcv.VoxelSet()
 
                 label_x, label_y = numpy.where(_seg_obj_image == label)
-                print label_x.shape
                 for _x, _y in zip(label_x, label_y):
                     voxset.add(larcv.Voxel(meta.index(_y,_x), 1))
 
@@ -115,7 +145,6 @@ def image_to_larcv(img, io, run=1, include_segmentation=False):
             clusterpixel2d_cls = larcv.ClusterPixel2D()
             clusterpixel2d_cls.meta(meta)
 
-            print labels
             for label in labels:
                 if label == 0:
                     continue
