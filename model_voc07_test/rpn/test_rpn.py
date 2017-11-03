@@ -23,7 +23,7 @@ conv_params.network_params()['restore_file'] = "/home/cadams/DLPlayground/model_
 rpn_params = rpn.rpn_params()
 rpn_params.network_params()['n_anchors_per_box'] = 9
 rpn_params.network_params()['weight_decay'] = 1E-3
-rpn_params.network_params()['n_selected_regressors'] = 128
+rpn_params.network_params()['n_selected_regressors'] = 56
 
 train_params = dict()
 train_params['LOGDIR'] = "logs/rpn_resnet/"
@@ -49,17 +49,35 @@ train_params['LEARNING_RATE'] = 0.0001
 #                                               is_training=True)    
 #     conv_names = tf.trainable_variables()
     
-# tf.reset_default_graph()
+
+_anchors = rpn_utils.pad_anchors(
+                rpn_utils.generate_anchors(base_size = 16*3, 
+                                           ratios = [0.5, 1, 2.0], 
+                                           scales = [2,4,6]))
+
+_anchors = rpn_utils.boxes_whctrs_to_minmax(_anchors)
+
+_external_anchor_indexes =  np.where(
+        (_anchors[:, 0] >= 0) &
+        (_anchors[:, 1] >= 0) &
+        (_anchors[:, 2] <  512) &  # width
+        (_anchors[:, 3] <  512)    # height
+    )[0]
 
 with tf.Graph().as_default():
     
-    N_MAX_TRUTH = 10
     # Set input data and label for training
     data_tensor = tf.placeholder(tf.float32, [1, 512,512,3], name='x')
-    label_tensor = tf.placeholder(tf.float32, [N_MAX_TRUTH, 20], name='labels')
-    box_label = tf.placeholder(tf.float32, [N_MAX_TRUTH, 4], name='truth_anchors')
+    # label_tensor = tf.placeholder(tf.float32, [N_MAX_TRUTH, 20], name='labels')
+    # box_label = tf.placeholder(tf.float32, [N_MAX_TRUTH, 4], name='truth_anchors')
     
-
+    # Need a tensorflow placeholder for the used anchors,
+    # for the matching ground truths, and for the pos/neg labels
+    
+    gt_tensor = tf.placeholder(tf.float32, [rpn_params.network_params()['n_selected_regressors'], 4], name='ground_truths')
+    anchor_tensor = tf.placeholder(tf.float32, [rpn_params.network_params()['n_selected_regressors'], 4], name='anchors')
+    label_tensor = tf.placeholder(tf.float32, [rpn_params.network_params()['n_selected_regressors']], name='labels')
+    
     conv_net = resnet.resnet(conv_params)
     with tf.variable_scope("ResNet"):
         final_conv_layer = conv_net.build_network(input_tensor=data_tensor,
@@ -81,60 +99,22 @@ with tf.Graph().as_default():
     classifier = tf.squeeze(classifier)
     regressor = tf.squeeze(regressor)
 
-
-
-    # Get a set of reference anchors:
-
-    n_anchors_x = final_conv_layer.get_shape().as_list()[1]
-    n_anchors_y = final_conv_layer.get_shape().as_list()[2]
-    effective_stride_x = data_tensor.get_shape().as_list()[1] / n_anchors_x
-    effective_stride_y = data_tensor.get_shape().as_list()[2] / n_anchors_y
-    n_anchors_x -= 2
-    n_anchors_y -= 2
-
-    n_anchors_total = n_anchors_x*n_anchors_y*rpn_params.network_params()['n_anchors_per_box']
+    n_anchors_total = len(_anchors)
 
     classifier = tf.reshape(classifier, (n_anchors_total, 2))
     regressor = tf.reshape(regressor, (n_anchors_total, 4))
     
     
-    _base_anchors = rpn_utils.generate_anchors(base_size = 16*3, 
-                                               ratios = [0.5, 1, 2.0], 
-                                               scales = [2,4,6])
-    # _base_anchors = rpn_utils.generate_anchors(base_size = 16*3, 
-    #                                            ratios = [1], 
-    #                                            scales = [4, 8])    
-
-    _anchors = rpn_utils.pad_anchors(_base_anchors,
-                                    n_tiles_x=n_anchors_x, 
-                                    n_tiles_y=n_anchors_y, 
-                                    step_size_x=effective_stride_x, 
-                                    step_size_y=effective_stride_y)
-
-    # # For debugging only: force the output of the regressor to a deterministic value:
-    # regressor = tf.placeholder(tf.float32, (8100, 4), name = "fake_regressor")
-    # numpy.random.seed(0)
-    # _fake_regressor = numpy.random.rand(8100, 4)
-    # _fake_regressor[:,2] *= 0.25
-    # _fake_regressor[:,3] *= 0.25
-
-    rpn_utils.boxes_whctrs_to_minmax(_anchors, in_place=True)
 
     # Anchors are now in min/max format and will always be 
     # assumed to be in min/max format
 
     anchors = tf.placeholder(tf.float32, _anchors.shape, name="anchors")
 
-    # Downselect and find the positive and negative indexes
-    # based on IoU and non max suppression:
-    pos_box_ind, pos_true_ind, neg_box_ind, neg_true_ind = RPN.downselect(
-        regressor, classifier, anchors, box_label)
-
-    # #Above, pos_true and neg_true is the matched truth box index for the 
-    # #positive and negative examples
     
+        
     regression_loss = RPN.regression_loss(regressor,
-        pos_box_ind, pos_true_ind, box_label, anchors)
+        label_tensor, anchors, ground_truths)
 
     regression_loss = (1./10) * regression_loss
     tf.summary.scalar("Regression Loss", regression_loss)
@@ -142,7 +122,7 @@ with tf.Graph().as_default():
 
     # Last step is to compute the loss for classification
 
-    classification_loss = RPN.classification_loss(classifier, pos_box_ind, neg_box_ind)
+    classification_loss = RPN.classification_loss(classifier, label_tensor)
 
     tf.summary.scalar("Classification Loss", classification_loss)
 
@@ -232,6 +212,7 @@ with tf.Graph().as_default():
             data, labels, boxes = loader.get_next_train_batch(1)
             labels = numpy.squeeze(labels)
             boxes = numpy.squeeze(boxes)
+            labels, ground_truths, matched_anchors = rpn_utils.numpy_select_label_anchors_minmax(boxes, _anchors)
 
             # pos_box_ind, pos_true_ind, neg_box_ind, neg_true_ind = sess.run([
             #     pos_box_ind, pos_true_ind, neg_box_ind, neg_true_ind], 

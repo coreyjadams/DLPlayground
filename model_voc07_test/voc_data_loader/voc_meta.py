@@ -52,9 +52,9 @@ class voc_meta(object):
 
         # Read in the list of segmenatation images:
         _f_base = self._top_dir + '/ImageSets/Segmentation/'
-        self._seg_train    = numpy.loadtxt(_f_base + "train.txt", dtype=int)
-        self._seg_val      = numpy.loadtxt(_f_base + "val.txt", dtype=int)
-        self._seg_trainval = numpy.loadtxt(_f_base + "trainval.txt", dtype=int)
+        self._seg_train    = numpy.loadtxt(_f_base + "train.txt", dtype=str)
+        self._seg_val      = numpy.loadtxt(_f_base + "val.txt", dtype=str)
+        self._seg_trainval = numpy.loadtxt(_f_base + "trainval.txt", dtype=str)
 
 
     def classes(self):

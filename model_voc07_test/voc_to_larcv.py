@@ -9,11 +9,12 @@ def main():
     # # Set up larcv saver:
 
 
-    _top_level = "VOC2007"
-    _base_name = "voc07_larcv"
+    _top_level = "/data1/VOC/VOCdevkit/VOC2012"
+    _base_name = "/data1/VOC/larcv/voc12_larcv"
+    run = 2012
 
     # Now, need to load the images
-    _voc_metadata = voc_meta("VOC2007")
+    _voc_metadata = voc_meta(_top_level)
 
     verbose = True 
 
@@ -25,11 +26,12 @@ def main():
     for index in train_all_indexes:
         if verbose:
             print "Train set, no seg, index {}".format(index)
-        _xml =  "{:06d}.xml".format(index)
-        img = voc_image('VOC2007', _xml)
-        image_to_larcv(img, io, _voc_metadata, index=index, run=7, include_segmentation=False)
+        _xml =  "{}.xml".format(index)
+        img = voc_image(_top_level, _xml)
+        image_to_larcv(img, io, _voc_metadata, index=int(index.split('_')[-1]), run=run, include_segmentation=False)
     io.finalize()
 
+    
     #Training set, with segmentation:
     train_seg_indexes = _voc_metadata.train_indexes(None, _seg_indexes=True)
     io = larcv.IOManager(larcv.IOManager.kWRITE)
@@ -38,9 +40,9 @@ def main():
     for index in train_seg_indexes:
         if verbose:
             print "Train set, seg, index {}".format(index)
-        _xml =  "{:06d}.xml".format(index)
-        img = voc_image('VOC2007', _xml)
-        image_to_larcv(img, io, _voc_metadata, index=index, run=7, include_segmentation=True)
+        _xml =  "{}.xml".format(index)
+        img = voc_image(_top_level, _xml)
+        image_to_larcv(img, io, _voc_metadata, index=int(index.split('_')[-1]), run=run, include_segmentation=True)
     io.finalize()
 
     #Validation set, no segmentation:
@@ -51,9 +53,9 @@ def main():
     for index in val_all_indexes:
         if verbose:
             print "Validation set, no seg, index {}".format(index)
-        _xml =  "{:06d}.xml".format(index)
-        img = voc_image('VOC2007', _xml)
-        image_to_larcv(img, io, _voc_metadata, index=index, run=7, include_segmentation=False)
+        _xml =  "{}.xml".format(index)
+        img = voc_image(_top_level, _xml)
+        image_to_larcv(img, io, _voc_metadata, index=int(index.split('_')[-1]), run=run, include_segmentation=False)
     io.finalize()
 
     val_seg_indexes = _voc_metadata.val_indexes(None, _seg_indexes=True)
@@ -63,9 +65,9 @@ def main():
     for index in val_seg_indexes:
         if verbose:
             print "Validation set, seg, index {}".format(index)
-        _xml =  "{:06d}.xml".format(index)
-        img = voc_image('VOC2007', _xml)
-        image_to_larcv(img, io, _voc_metadata, index=index, run=7, include_segmentation=False)
+        _xml =  "{}.xml".format(index)
+        img = voc_image(_top_level, _xml)
+        image_to_larcv(img, io, _voc_metadata, index=int(index.split('_')[-1]), run=run, include_segmentation=False)
     io.finalize()
 
 

@@ -1,17 +1,16 @@
 import tensorflow as tf
 import numpy
-import sys
+import os, sys, time
 from models import rpn, rpn_utils, resnet, training_params
-
-from voc_data_loader import voc_meta, image_loader
+from larcv.dataloader2 import larcv_threadio
 
 # Use a resnet for the convolutional step:
 conv_params = resnet.resnet_params()
-conv_params.network_params()['n_blocks'] = 8
+conv_params.network_params()['n_blocks'] = 16
 conv_params.network_params()['include_final_classifier'] = False
 conv_params.network_params()['n_classes'] = 20
 conv_params.network_params()['n_initial_filters'] = 12
-conv_params.network_params()['downsample_interval'] = 2
+conv_params.network_params()['downsample_interval'] = 4
 conv_params.network_params()['initial_stride'] = 2
 conv_params.network_params()['initial_kernel'] = 5
 conv_params.network_params()['bottleneck'] = False
@@ -25,16 +24,34 @@ train_params['ITERATIONS'] = 12000
 train_params['SAVE_ITERATION'] = 1000
 train_params['RESTORE'] = True
 train_params['RESTORE_INDEX'] = -1
-train_params['LEARNING_RATE'] = 0.00001
+train_params['LEARNING_RATE'] = 0.0001
 train_params['DECAY_STEP'] = 100
 train_params['DECAY_RATE'] = 0.99
 train_params['BATCH_SIZE'] = 12
+
+#
+# IO
+#
+train_io = larcv_threadio()        # create io interface 
+train_io_cfg = {'filler_name' : 'Train',
+                'verbosity'   : 0, 
+                'filler_cfg'  : 'train.cfg'}
+train_io.configure(train_io_cfg)   # configure
+train_io.start_manager(train_params['BATCH_SIZE']) # start read thread
+time.sleep(2)
+# retrieve data dimensions to define network later
+train_io.next()
+dim_data  = train_io.fetch_data('image').dim()
+dim_label = train_io.fetch_data('label').dim()
+
+print train_io.fetch_data('image')
+
+exit()
 
 # Set up the graph:
 with tf.Graph().as_default():
 
 
-    N_MAX_TRUTH = 10
     # Set input data and label for training
     data_tensor = tf.placeholder(tf.float32, [None, 512,512,3], name='x')
     label_tensor = tf.placeholder(tf.float32, [None, 20], name='labels')
