@@ -22,7 +22,7 @@ def main():
     io = larcv.IOManager(larcv.IOManager.kWRITE)
     io.set_out_file(_base_name + "_train.root")
     io.initialize()
-    for index in train_all_indexes[0:10]:
+    for index in train_all_indexes:
         if verbose:
             print "Train set, no seg, index {}".format(index)
         _xml =  "{:06d}.xml".format(index)
@@ -35,7 +35,7 @@ def main():
     io = larcv.IOManager(larcv.IOManager.kWRITE)
     io.set_out_file(_base_name + "_seg_train.root")
     io.initialize()
-    for index in train_seg_indexes[0:10]:
+    for index in train_seg_indexes:
         if verbose:
             print "Train set, seg, index {}".format(index)
         _xml =  "{:06d}.xml".format(index)
@@ -48,7 +48,7 @@ def main():
     io = larcv.IOManager(larcv.IOManager.kWRITE)
     io.set_out_file(_base_name + "_val.root")
     io.initialize()
-    for index in val_all_indexes[0:10]:
+    for index in val_all_indexes:
         if verbose:
             print "Validation set, no seg, index {}".format(index)
         _xml =  "{:06d}.xml".format(index)
@@ -60,7 +60,7 @@ def main():
     io = larcv.IOManager(larcv.IOManager.kWRITE)
     io.set_out_file(_base_name + "_seg_val.root")
     io.initialize()
-    for index in val_seg_indexes[0:10]:
+    for index in val_seg_indexes:
         if verbose:
             print "Validation set, seg, index {}".format(index)
         _xml =  "{:06d}.xml".format(index)
