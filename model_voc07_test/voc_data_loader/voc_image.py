@@ -42,8 +42,8 @@ class voc_image(object):
         self._base_image = ndimage.imread(top_dir + "/JPEGImages/" + _base_imname, mode='RGB') * (1./255)
         if self._has_segmentation:
             _base_imname = xml_file.replace(".xml", "") + ".png"
-            self._seg_class = ndimage.imread(top_dir + "/SegmentationClass/" + _base_imname)
-            self._seg_obj = ndimage.imread(top_dir + "/SegmentationObject/" + _base_imname)
+            self._seg_class = ndimage.imread(top_dir + "/SegmentationClass/" + _base_imname,mode='P')
+            self._seg_obj = ndimage.imread(top_dir + "/SegmentationObject/" + _base_imname,mode='P')
 
 
     def image(self):
@@ -52,7 +52,7 @@ class voc_image(object):
     def segmentation_object(self):
         return self._seg_obj
 
-    def segmentation_object(self):
+    def segmentation_class(self):
         return self._seg_class
 
     def xml(self):
