@@ -10,11 +10,11 @@ from models import resnet3d
 
 # Use a resnet for the convolutional step:
 conv_params = resnet3d.resnet3d_params()
-conv_params.network_params()['n_blocks'] = 16
+conv_params.network_params()['n_blocks'] = 4
 conv_params.network_params()['include_final_classifier'] = False
 conv_params.network_params()['n_classes'] = 20
-conv_params.network_params()['n_initial_filters'] = 12
-conv_params.network_params()['downsample_interval'] = 4
+conv_params.network_params()['n_initial_filters'] = 2
+conv_params.network_params()['downsample_interval'] = 1
 conv_params.network_params()['initial_stride'] = 2
 conv_params.network_params()['initial_kernel'] = 5
 conv_params.network_params()['bottleneck'] = False
@@ -26,6 +26,7 @@ train_params = dict()
 train_params['LOGDIR'] = "logs/rpn_resnet/"
 train_params['ITERATIONS'] = 12000
 train_params['SAVE_ITERATION'] = 1000
+train_params['TEST_ITERATION'] = 5
 train_params['RESTORE'] = False
 train_params['RESTORE_INDEX'] = -1
 train_params['LEARNING_RATE'] = 0.0001
@@ -47,12 +48,9 @@ train_io.start_manager(train_params['BATCH_SIZE']) # start read thread
 time.sleep(2)
 # retrieve data dimensions to define network later
 train_io.next()
-dim_data  = train_io.fetch_data('image').dim()
-dim_label = train_io.fetch_data('label').dim()
+dim_data  = train_io.fetch_data('train_image').dim()
+dim_label = train_io.fetch_data('train_label').dim()
 
-print train_io.fetch_data('label').data()
-print train_io.fetch_data('image').dim()
-print train_io.fetch_data('image').data().shape
 
 
 val_io = larcv_threadio()        # create io interface 
@@ -64,13 +62,6 @@ val_io.start_manager(train_params['BATCH_SIZE']) # start read thread
 time.sleep(2)
 # retrieve data dimensions to define network later
 val_io.next()
-dim_data  = val_io.fetch_data('image').dim()
-dim_label = val_io.fetch_data('label').dim()
-
-print val_io.fetch_data('label').data()
-print val_io.fetch_data('image').dim()
-print val_io.fetch_data('image').data().shape
-
 
 
 # 2) Configure global process (session, summary, etc.)
@@ -179,8 +170,8 @@ with tf.Graph().as_default():
                 
             # Receive data (this will hang if IO thread is still running = this
             # will wait for thread to finish & receive data)
-            batch_data  = train_io.fetch_data('image').data()
-            batch_label = train_io.fetch_data('label').data()
+            batch_data  = train_io.fetch_data('train_image').data()
+            batch_label = train_io.fetch_data('train_label').data()
 
             batch_data = np.reshape(batch_data, (batch_data.shape[0], dim_data[1], dim_data[2], dim_data[3], 1))
 
@@ -198,16 +189,16 @@ with tf.Graph().as_default():
 
             
 
-            # # Test the model with the validation set:
-            # if step != 0 and step % TEST_ITERATION == 0:
-            #     val_data  = train_proc.fetch_data(STORAGE_KEY_DATA).data()
-            #     val_label = train_proc.fetch_data(STORAGE_KEY_LABEL).data()
-            #     val_proc.next()
-            #     val_data = np.reshape(val_data, (val_data.shape[0], dim_data[1], dim_data[2], dim_data[3], 1))
-            #     [v_s] = sess.run([val_summary], 
-            #                     feed_dict={data_tensor: val_data, 
-            #                                label_tensor : val_label})
-            #     train_writer.add_summary(v_s, step)
+            # Test the model with the validation set:
+            if step != 0 and step % train_params['TEST_ITERATION'] == 0:
+                val_data  = val_io.fetch_data('val_image').data()
+                val_label = val_io.fetch_data('val_label').data()
+                val_io.next()
+                val_data = np.reshape(val_data, (val_data.shape[0], dim_data[1], dim_data[2], dim_data[3], 1))
+                [v_s] = sess.run([val_summary], 
+                                feed_dict={data_tensor: val_data, 
+                                           label_tensor : val_label})
+                train_writer.add_summary(v_s, step)
   
             # Run the training step:
             [l, a, summary, _] = sess.run([cross_entropy, accuracy, merged_summary, train_step], 
