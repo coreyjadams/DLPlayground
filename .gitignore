@@ -1,3 +1,4 @@
+*.pkl
 *.root
 *.ipynb_checkpoints
 *.index
@@ -6,5 +7,5 @@
 *.out
 *.log
 *.root
-*log/*
+*log*
 *checkpoint
